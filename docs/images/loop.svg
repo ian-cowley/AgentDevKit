@@ -1,0 +1,30 @@
+<svg width="600" height="180" viewBox="0 0 600 180" xmlns="http://www.w3.org/2000/svg">
+    <rect x="20" y="70" width="80" height="40" rx="8" fill="rgba(255,255,255,0.05)" stroke="#fff" stroke-width="1" />
+    <text x="60" y="95" text-anchor="middle" fill="#fff" font-size="12" font-family="sans-serif">Draft</text>
+    
+    <path d="M100 90 H 180" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+    
+    <!-- Worker -->
+    <rect x="180" y="70" width="100" height="40" rx="8" fill="rgba(74, 144, 226, 0.1)" stroke="#4a90e2" stroke-width="2" />
+    <text x="230" y="95" text-anchor="middle" fill="#fff" font-size="12" font-weight="600" font-family="sans-serif">Worker</text>
+    
+    <path d="M280 90 H 340" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+    
+    <!-- Validator -->
+    <rect x="340" y="70" width="110" height="40" rx="8" fill="rgba(108, 92, 231, 0.1)" stroke="#6c5ce7" stroke-width="2" />
+    <text x="395" y="95" text-anchor="middle" fill="#fff" font-size="12" font-weight="600" font-family="sans-serif">Validator</text>
+    
+    <!-- Loop path -->
+    <path d="M395 70 V 30 H 230 V 70" fill="none" stroke="#f472b6" stroke-width="2" stroke-dasharray="4" marker-end="url(#arrow)" />
+    <text x="312" y="22" text-anchor="middle" fill="#f472b6" font-size="11" font-weight="700" font-family="sans-serif">Fail: Refine</text>
+
+    <!-- Exit path -->
+    <path d="M450 90 H 510" stroke="#34d399" stroke-width="2" marker-end="url(#arrow)" />
+    <text x="540" y="95" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700" font-family="sans-serif">Pass</text>
+    
+    <defs>
+        <marker id="arrow" markerWidth="10" height="10" refX="9" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8" />
+        </marker>
+    </defs>
+</svg>

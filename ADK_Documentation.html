@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADK | Agent Development Kit Documentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --secondary: #6c5ce7;
+            --bg: #0f172a;
+            --bg-sidebar: #1e293b;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --accent: #22d3ee;
+            --code-bg: #1e293b;
+            --border: #334155;
+            --success: #34d399;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Nav */
+        aside {
+            width: 300px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            padding: 2.5rem 1.5rem;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .logo svg { color: var(--accent); }
+        .logo span { color: var(--accent); opacity: 0.8; font-weight: 400; }
+
+        nav ul { list-style: none; }
+        nav li { margin-bottom: 0.5rem; }
+        nav a {
+            display: block;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        nav a:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+        nav a.active { background: rgba(74, 144, 226, 0.1); color: var(--accent); font-weight: 600; }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 4rem 10% 8rem 10%;
+            max-width: 1200px;
+        }
+
+        section { margin-bottom: 6rem; scroll-margin-top: 4rem; }
+
+        h1 { font-size: 3.5rem; font-weight: 800; margin-bottom: 1rem; letter-spacing: -0.02em; }
+        h2 { font-size: 2.25rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--primary); display: flex; align-items: center; gap: 1rem; }
+        h3 { font-size: 1.5rem; font-weight: 600; margin-top: 2.5rem; margin-bottom: 1rem; color: var(--accent); }
+
+        p { margin-bottom: 1.5rem; color: var(--text-dim); font-size: 1.1rem; max-width: 800px; }
+        strong { color: var(--text); }
+
+        .badge {
+            display: inline-block;
+            background: rgba(34, 211, 238, 0.1);
+            color: var(--accent);
+            padding: 0.4rem 0.8rem;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
+
+        /* Diagrams */
+        .diagram-box {
+            background: #1e293b;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 2.5rem 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .diagram-caption {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        /* Elements for Novice Context */
+        .card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin: 2rem 0;
+            border-left: 4px solid var(--primary);
+        }
+        .card h4 { margin-bottom: 0.5rem; color: var(--text); }
+
+        /* Code Blocks */
+        .code-header {
+            background: #334155;
+            color: #cbd5e1;
+            padding: 0.5rem 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            border-radius: 8px 8px 0 0;
+            border: 1px solid var(--border);
+            border-bottom: none;
+            display: inline-block;
+        }
+        pre {
+            background: #0f172a;
+            padding: 1.5rem;
+            border-radius: 0 12px 12px 12px;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            margin-bottom: 2.5rem;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+        code { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: #e2e8f0; }
+
+        /* Syntax Highlighting */
+        .kw { color: #f472b6; } /* Keywords */
+        .tp { color: #34d399; } /* Types */
+        .st { color: #fbbf24; } /* Strings */
+        .cm { color: #64748b; font-style: italic; } /* Comments */
+        .fn { color: #60a5fa; } /* Functions */
+
+        @media (max-width: 1100px) {
+            aside { width: 240px; }
+            main { padding: 4rem 5%; }
+        }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="logo">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            ADK <span>SDK</span>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#intro" class="active">Introduction</a></li>
+                <li><a href="#brain">The Brain (Agent)</a></li>
+                <li><a href="#hands">The Hands (Tools)</a></li>
+                <li><a href="#memory">The Memory (Sessions)</a></li>
+                <li><a href="#teams">Building Teams</a></li>
+                <li><a href="#patterns">Design Patterns</a></li>
+                <li><a href="#mcp">External Tools (MCP)</a></li>
+                <li><a href="#security">Security & Safety</a></li>
+                <li><a href="#resilience">Robustness & Retries</a></li>
+                <li><a href="#telemetry">Seeing the Logic</a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <main>
+        <section id="intro">
+            <span class="badge">Master Class</span>
+            <h1>The Agent SDK</h1>
+            <p>Welcome to the <strong>Agent Development Kit</strong>. This C# library is designed to help you create "Agents"—AI personalities that don't just talk, but <strong>think, plan, and act</strong> using real-world tools.</p>
+            
+            <div class="card">
+                <h4>What is an Agent?</h4>
+                <p>Think of it as a specialized job description for an AI. While ChatGPT is a generalist, an ADK Agent is an expert (like a "Database Researcher" or "Python Expert") equipped with the specific tools and instructions needed for that role.</p>
+            </div>
+        </section>
+
+        <section id="brain">
+            <h2>The Brain</h2>
+            <p>At the center of everything is the <code>LlmAgent</code>. It takes your instructions and uses a <strong>Language Model</strong> (like Google Gemini or Google Gemma) to decide what to do next.</p>
+            
+            <div class="diagram-box">
+                <svg width="600" height="280" viewBox="0 0 600 280">
+                    <!-- Central Agent -->
+                    <rect x="220" y="100" width="160" height="80" rx="12" fill="rgba(74, 144, 226, 0.15)" stroke="#4a90e2" stroke-width="2" />
+                    <text x="300" y="145" text-anchor="middle" fill="#fff" font-weight="700" font-size="16">LlmAgent</text>
+                    
+                    <!-- Top: Logic Source -->
+                    <path d="M300 100 V 50" stroke="var(--text-dim)" stroke-dasharray="8 4" marker-end="url(#arrow)" />
+                    <circle cx="300" cy="35" r="25" fill="rgba(108, 92, 231, 0.15)" stroke="#6c5ce7" stroke-width="2" />
+                    <text x="300" y="40" text-anchor="middle" fill="#6c5ce7" font-weight="700" font-size="10">LLM</text>
+
+                    <!-- Down: Output -->
+                    <path d="M300 180 V 230" stroke="var(--text-dim)" marker-end="url(#arrow)" />
+                    <text x="310" y="215" fill="var(--text-dim)" font-size="12">Final Output</text>
+
+                    <!-- Left: Input -->
+                    <path d="M100 140 H 220" stroke="var(--text-dim)" marker-end="url(#arrow)" />
+                    <text x="110" y="130" fill="var(--text-dim)" font-size="12">User Prompt</text>
+
+                    <!-- Defs for arrow -->
+                    <defs>
+                        <marker id="arrow" markerWidth="10" height="10" refX="9" refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8" />
+                        </marker>
+                    </defs>
+                </svg>
+                <div class="diagram-caption">Figure 1: High-level Agent Architecture showing the loop of thought.</div>
+            </div>
+
+            <div class="code-header">Program.cs</div>
+            <pre><code><span class="cm">// 1. Setup the Brain connections</span>
+<span class="kw">var</span> llm = <span class="kw">new</span> <span class="tp">GeminiService</span>(apiKey);
+
+<span class="cm">// 2. Create your Agent character</span>
+<span class="kw">var</span> agent = <span class="kw">new</span> <span class="tp">LlmAgent</span>(
+    name: <span class="st">"ChefBot"</span>,
+    instructions: <span class="st">"You are an expert chef. Give short, punchy recipes."</span>
+);
+
+<span class="cm">// 3. Ask it a question</span>
+<span class="tp">string</span> result = <span class="kw">await</span> agent.<span class="fn">RunAsync</span>(<span class="st">"How do I make a grilled cheese?"</span>, llm);</code></pre>Section
+        </section>
+
+        <section id="hands">
+            <h2>The Hands (Tools)</h2>
+            <p>Tools are what make agents truly powerful. Without tools, an AI can only talk. With tools, an AI can <strong>read files, calculate math, or search the web.</strong></p>
+            
+            <div class="card">
+                <h4>Dynamic Capability</h4>
+                <p>When an agent realizes it needs information it doesn't have (like the current time or a file's contents), it will automatically pause, call a Tool, and use the result to finish its reply.</p>
+            </div>
+
+            <pre><code><span class="cm">// Define a new capability</span>
+<span class="kw">public class</span> <span class="tp">FileReadTool</span> : <span class="tp">ITool</span> { ... }
+
+<span class="cm">// Give the hands to the agent</span>
+agent.Tools.<span class="fn">Add</span>(<span class="kw">new</span> <span class="tp">FileReadTool</span>());</code></pre>
+        </section>
+
+        <section id="memory">
+            <h2>The Memory</h2>
+            <p>By default, AI models have "Goldfish Memory"—they forget every request as soon as it's done. Our SDK uses <strong>Sessions</strong> to give them long-term memory.</p>
+            
+            <pre><code><span class="cm">// Using Sqlite lets your agent remember things even if you restart the app!</span>
+<span class="kw">var</span> memory = <span class="kw">new</span> <span class="tp">SqliteSessionProvider</span>(<span class="st">"Data Source=agents.db"</span>);
+
+<span class="cm">// Load the history for "User_42"</span>
+<span class="kw">var</span> (history, save) = <span class="kw">await</span> memory.<span class="fn">GetSessionAsync</span>(<span class="st">"User_42"</span>);
+
+<span class="cm">// Run the agent with that history</span>
+<span class="kw">var</span> response = <span class="kw">await</span> agent.<span class="fn">RunAsync</span>(prompt, llm, history);
+
+<span class="cm">// Save the new conversation part</span>
+<span class="kw">await</span> <span class="fn">save</span>(agent.History);</code></pre>
+        </section>
+
+        <section id="teams">
+            <h2>Building Teams (Delegation)</h2>
+            <p>One agent is smart, but a <strong>Team of Agents</strong> is unstoppable. You can give one agent (The Manager) another agent (The Specialist) as a tool.</p>
+
+            <div class="diagram-box">
+                <svg width="500" height="150" viewBox="0 0 500 150">
+                    <rect x="20" y="40" width="120" height="60" rx="10" fill="rgba(74, 144, 226, 0.1)" stroke="#4a90e2" stroke-width="2" />
+                    <text x="80" y="75" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">Manager</text>
+                    
+                    <path d="M140 70 H 220" stroke="var(--text-dim)" marker-end="url(#arrow)" />
+                    <text x="180" y="60" text-anchor="middle" fill="var(--text-dim)" font-size="10">Delegates To</text>
+
+                    <rect x="220" y="40" width="120" height="60" rx="10" fill="rgba(34, 211, 238, 0.1)" stroke="#22d3ee" stroke-width="2" />
+                    <text x="280" y="75" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">Researcher</text>
+
+                    <path d="M340 70 H 420" stroke="var(--text-dim)" marker-end="url(#arrow)" />
+                    <text x="380" y="60" text-anchor="middle" fill="var(--text-dim)" font-size="10">Results</text>
+                </svg>
+                <div class="diagram-caption">Figure 2: The Delegation Tool pattern.</div>
+            </div>
+
+            <pre><code><span class="kw">var</span> researcher = <span class="kw">new</span> <span class="tp">LlmAgent</span>(<span class="st">"Researcher"</span>, <span class="st">"Find facts..."</span>);
+<span class="kw">var</span> manager = <span class="kw">new</span> <span class="tp">LlmAgent</span>(<span class="st">"Manager"</span>, <span class="st">"Guide the project..."</span>);
+
+<span class="cm">// Manager now has a "Researcher Tool"</span>
+manager.Tools.<span class="fn">Add</span>(<span class="kw">new</span> <span class="tp">DelegationTool</span>(researcher, llm));</code></pre>
+        </section>
+
+        <section id="patterns">
+            <h2>Design Patterns</h2>
+            <p>Orchestration helps you solve huge problems by breaking them into patterns. These three patterns are the foundation of all advanced agent workflows.</p>
+            
+            <h3>1. Sequential Pipeline</h3>
+            <p>The simplest pattern. Data flows in a straight line from one expert to another. Each agent refines or transforms the output of the previous one.</p>
+            <div class="diagram-box">
+                <svg width="600" height="120" viewBox="0 0 600 120">
+                    <rect x="20" y="40" width="100" height="40" rx="8" fill="rgba(74, 144, 226, 0.1)" stroke="#4a90e2" stroke-width="2" />
+                    <text x="70" y="65" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Writer</text>
+                    <path d="M120 60 H 180" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)" />
+                    
+                    <rect x="180" y="40" width="110" height="40" rx="8" fill="rgba(74, 144, 226, 0.1)" stroke="#4a90e2" stroke-width="2" />
+                    <text x="235" y="65" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Translator</text>
+                    <path d="M290 60 H 350" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)" />
+                    
+                    <rect x="350" y="40" width="100" height="40" rx="8" fill="rgba(74, 144, 226, 0.1)" stroke="#4a90e2" stroke-width="2" />
+                    <text x="400" y="65" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Reviewer</text>
+                </svg>
+                <div class="diagram-caption">Figure 3: Sequential flow. Ideal for cleaning, translating, or formatting data.</div>
+            </div>
+
+            <h3>2. Parallel Workflow</h3>
+            <p>Perfect for speed. One task is divided and sent to multiple agents at once. A "merger" step then combines their findings into a single response.</p>
+            <div class="diagram-box">
+                <svg width="600" height="220" viewBox="0 0 600 220">
+                    <!-- Start -->
+                    <rect x="20" y="90" width="80" height="40" rx="8" fill="rgba(255,255,255,0.05)" stroke="#fff" stroke-width="1" />
+                    <text x="60" y="115" text-anchor="middle" fill="#fff" font-size="12">Project</text>
+                    
+                    <!-- Split Arrows -->
+                    <path d="M100 110 L 180 50" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+                    <path d="M100 110 L 180 110" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+                    <path d="M100 110 L 180 170" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+
+                    <!-- Workers -->
+                    <rect x="180" y="30" width="100" height="40" rx="8" fill="rgba(34, 211, 238, 0.1)" stroke="#22d3ee" stroke-width="2" />
+                    <text x="230" y="55" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Agent A</text>
+                    <rect x="180" y="90" width="100" height="40" rx="8" fill="rgba(34, 211, 238, 0.1)" stroke="#22d3ee" stroke-width="2" />
+                    <text x="230" y="115" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Agent B</text>
+                    <rect x="180" y="150" width="100" height="40" rx="8" fill="rgba(34, 211, 238, 0.1)" stroke="#22d3ee" stroke-width="2" />
+                    <text x="230" y="175" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Agent C</text>
+
+                    <!-- Join Arrows -->
+                    <path d="M280 50 L 360 110" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+                    <path d="M280 110 L 360 110" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+                    <path d="M280 170 L 360 110" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+
+                    <!-- Result -->
+                    <rect x="360" y="90" width="120" height="40" rx="8" fill="#4a90e2" opacity="0.2" stroke="#4a90e2" stroke-width="2" />
+                    <text x="420" y="115" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Final Report</text>
+                </svg>
+                <div class="diagram-caption">Figure 4: Parallel execution. Used for searching multiple sources simultaneously.</div>
+            </div>
+
+            <h3>3. Loop Workflow</h3>
+            <p>For high-quality results. An agent creates content, and a "Validator" checks it against rules. If it fails, the agent is told what to fix and tries again.</p>
+            <div class="diagram-box">
+                <svg width="600" height="180" viewBox="0 0 600 180">
+                    <rect x="20" y="70" width="80" height="40" rx="8" fill="rgba(255,255,255,0.05)" stroke="#fff" stroke-width="1" />
+                    <text x="60" y="95" text-anchor="middle" fill="#fff" font-size="12">Draft</text>
+                    
+                    <path d="M100 90 H 180" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+                    
+                    <!-- Worker -->
+                    <rect x="180" y="70" width="100" height="40" rx="8" fill="rgba(74, 144, 226, 0.1)" stroke="#4a90e2" stroke-width="2" />
+                    <text x="230" y="95" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Worker</text>
+                    
+                    <path d="M280 90 H 340" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+                    
+                    <!-- Validator -->
+                    <rect x="340" y="70" width="110" height="40" rx="8" fill="rgba(108, 92, 231, 0.1)" stroke="#6c5ce7" stroke-width="2" />
+                    <text x="395" y="95" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Validator</text>
+                    
+                    <!-- Loop path -->
+                    <path d="M395 70 V 30 H 230 V 70" fill="none" stroke="#f472b6" stroke-width="2" stroke-dasharray="4" marker-end="url(#arrow)" />
+                    <text x="312" y="22" text-anchor="middle" fill="#f472b6" font-size="11" font-weight="700">Fail: Refine</text>
+
+                    <!-- Exit path -->
+                    <path d="M450 90 H 510" stroke="#34d399" stroke-width="2" marker-end="url(#arrow)" />
+                    <text x="540" y="95" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700">Pass</text>
+                </svg>
+                <div class="diagram-caption">Figure 5: Loop pattern. Great for code generation or fact-checking.</div>
+            </div>
+        </section>
+
+        <section id="mcp">
+            <h2>Dynamic Tools (MCP)</h2>
+            <p>The <strong>Model Context Protocol</strong> is an industry standard. It lets your agent "plug in" to a database, a local file system, or a web search engine without writing any custom C# code.</p>
+            <pre><code><span class="cm">// Auto-connect to a local SQLite database using MCP</span>
+<span class="kw">var</span> mcp = <span class="kw">new</span> <span class="tp">McpService</span>();
+<span class="kw">var</span> databaseTools = <span class="kw">await</span> mcp.<span class="fn">InitializeFromConfigAsync</span>(config);
+
+agent.Tools.<span class="fn">AddRange</span>(databaseTools);</code></pre>
+        </section>
+
+        <section id="security">
+            <h2>Security & Safety</h2>
+            <p>In the real world, agents can be dangerous. Our SDK provides <strong>Guardrails</strong> and <strong>Manual Approvals</strong> to keep your agents safe and compliant.</p>
+            
+            <div class="card">
+                <h4>Human-in-the-Loop (HITL)</h4>
+                <p>By wrapping a tool in <code>SensitiveTool</code>, you ensure the agent <strong>cannot</strong> run it without explicit permission from a human using the <code>IApprovalService</code>.</p>
+            </div>
+
+            <pre><code><span class="cm">// 1. Define a tool as "Sensitive"</span>
+<span class="kw">var</span> tool = <span class="kw">new</span> <span class="tp">SensitiveTool</span>(<span class="kw">new</span> <span class="tp">DeleteDatabaseTool</span>());
+
+<span class="cm">// 2. Provide an approval mechanism (e.g. CLI, Web, or Email)</span>
+agent.ApprovalService = <span class="kw">new</span> <span class="tp">ConsoleApprovalService</span>();</code></pre>
+
+            <h3>Guardrail Interceptors</h3>
+            <p>Use the <code>BeforeToolCall</code> hook to modify or block requests before they reach a tool. This is perfect for <strong>Path Sanitization</strong> or <strong>Token Filtering</strong>.</p>
+            
+            <pre><code>agent.BeforeToolCall = <span class="kw">async</span> (tool, args) => {
+    <span class="kw">if</span> (args.<span class="fn">Contains</span>(<span class="st">".."</span>)) {
+        <span class="kw">throw new</span> <span class="tp">SecurityException</span>(<span class="st">"Path breakout attempt!"</span>);
+    }
+    <span class="kw">return</span> args;
+};</code></pre>
+        </section>
+
+        <section id="resilience">
+            <h2>🛡️ Robustness & Retries</h2>
+            <p>Modern LLMs (especially smaller local ones) can sometimes produce malformed JSON or include conversational noise when calling tools. The ADK includes built-in safeguards to handle these scenarios.</p>
+            
+            <div class="card">
+                <h4>Resilient Parsing & Self-Correction</h4>
+                <p>The SDK automatically "extracts" JSON blocks from noisy strings. If a tool call is still invalid, the agent provides feedback to the model and automatically retries the request.</p>
+            </div>
+
+            <pre><code><span class="cm">// Configure a robust agent with a retry budget</span>
+<span class="kw">var</span> agent = <span class="kw">new</span> <span class="tp">LlmAgent</span>(...) {
+    MaxRetries = 3 <span class="cm">// Automatically fix malformed output up to 3 times</span>
+};</code></pre>
+
+            <div class="diagram-box">
+                <svg width="400" height="150" viewBox="0 0 400 150">
+                    <!-- Self-Correction Flow -->
+                    <rect x="10" y="50" width="90" height="50" rx="5" fill="rgba(74, 144, 226, 0.1)" stroke="#4a90e2" stroke-width="2" />
+                    <text x="55" y="80" text-anchor="middle" fill="#fff" font-size="12">LLM Output</text>
+                    
+                    <path d="M 100 75 H 150" stroke="var(--text-dim)" marker-end="url(#arrow)" />
+                    
+                    <rect x="150" y="50" width="100" height="50" rx="5" fill="rgba(249, 171, 0, 0.1)" stroke="#f9ab00" stroke-width="2" />
+                    <text x="200" y="72" text-anchor="middle" fill="#fff" font-size="12">Valid JSON?</text>
+                    <text x="200" y="88" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700">NO -> RETRY</text>
+                    
+                    <path d="M 200 50 Q 200 10 55 50" fill="none" stroke="#f87171" stroke-width="2" stroke-dasharray="4" marker-end="url(#arrow)" />
+                    
+                    <path d="M 250 75 H 300" stroke="var(--text-dim)" marker-end="url(#arrow)" />
+                    
+                    <rect x="300" y="50" width="80" height="50" rx="5" fill="rgba(52, 211, 153, 0.1)" stroke="#34d399" stroke-width="2" />
+                    <text x="340" y="80" text-anchor="middle" fill="#fff" font-size="12">Execute</text>
+                </svg>
+                <div class="diagram-caption">Figure 6: The Self-Correction Loop for malformed outputs.</div>
+            </div>
+        </section>
+
+        <section id="telemetry">
+            <h2>Seeing the Logic (Telemetry)</h2>
+            <p>Ever wonder why an AI said something? Our SDK has built-in <strong>OpenTelemetry</strong>. You can watch the "mental flow" of your agents in production-grade dashboards.</p>
+            <div class="card">
+                <p><strong>Visibility:</strong> Track exactly how many tokens were used, how much it cost, and the specific sequence of tool calls that led to an answer.</p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Highlighting current section in sidebar
+        const sections = document.querySelectorAll('section');
+        const navLinks = document.querySelectorAll('nav a');
+
+        window.addEventListener('scroll', () => {
+            let current = "";
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').includes(current)) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

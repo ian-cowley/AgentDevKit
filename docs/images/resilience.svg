@@ -1,0 +1,24 @@
+<svg width="400" height="150" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
+    <!-- Self-Correction Flow -->
+    <rect x="10" y="50" width="90" height="50" rx="5" fill="rgba(74, 144, 226, 0.1)" stroke="#4a90e2" stroke-width="2" />
+    <text x="55" y="80" text-anchor="middle" fill="#fff" font-size="12" font-family="sans-serif">LLM Output</text>
+    
+    <path d="M 100 75 H 150" stroke="#94a3b8" marker-end="url(#arrow)" />
+    
+    <rect x="150" y="50" width="100" height="50" rx="5" fill="rgba(249, 171, 0, 0.1)" stroke="#f9ab00" stroke-width="2" />
+    <text x="200" y="72" text-anchor="middle" fill="#fff" font-size="12" font-family="sans-serif">Valid JSON?</text>
+    <text x="200" y="88" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700" font-family="sans-serif">NO -> RETRY</text>
+    
+    <path d="M 200 50 Q 200 10 55 50" fill="none" stroke="#f87171" stroke-width="2" stroke-dasharray="4" marker-end="url(#arrow)" />
+    
+    <path d="M 250 75 H 300" stroke="#94a3b8" marker-end="url(#arrow)" />
+    
+    <rect x="300" y="50" width="80" height="50" rx="5" fill="rgba(52, 211, 153, 0.1)" stroke="#34d399" stroke-width="2" />
+    <text x="340" y="80" text-anchor="middle" fill="#fff" font-size="12" font-family="sans-serif">Execute</text>
+    
+    <defs>
+        <marker id="arrow" markerWidth="10" height="10" refX="9" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8" />
+        </marker>
+    </defs>
+</svg>

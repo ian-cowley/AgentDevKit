@@ -1,0 +1,33 @@
+<svg width="600" height="220" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+    <!-- Start -->
+    <rect x="20" y="90" width="80" height="40" rx="8" fill="rgba(255,255,255,0.05)" stroke="#fff" stroke-width="1" />
+    <text x="60" y="115" text-anchor="middle" fill="#fff" font-size="12" font-family="sans-serif">Project</text>
+    
+    <!-- Split Arrows -->
+    <path d="M100 110 L 180 50" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+    <path d="M100 110 L 180 110" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+    <path d="M100 110 L 180 170" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+
+    <!-- Workers -->
+    <rect x="180" y="30" width="100" height="40" rx="8" fill="rgba(34, 211, 238, 0.1)" stroke="#22d3ee" stroke-width="2" />
+    <text x="230" y="55" text-anchor="middle" fill="#fff" font-size="12" font-weight="600" font-family="sans-serif">Agent A</text>
+    <rect x="180" y="90" width="100" height="40" rx="8" fill="rgba(34, 211, 238, 0.1)" stroke="#22d3ee" stroke-width="2" />
+    <text x="230" y="115" text-anchor="middle" fill="#fff" font-size="12" font-weight="600" font-family="sans-serif">Agent B</text>
+    <rect x="180" y="150" width="100" height="40" rx="8" fill="rgba(34, 211, 238, 0.1)" stroke="#22d3ee" stroke-width="2" />
+    <text x="230" y="175" text-anchor="middle" fill="#fff" font-size="12" font-weight="600" font-family="sans-serif">Agent C</text>
+
+    <!-- Join Arrows -->
+    <path d="M280 50 L 360 110" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+    <path d="M280 110 L 360 110" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+    <path d="M280 170 L 360 110" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)" />
+
+    <!-- Result -->
+    <rect x="360" y="90" width="120" height="40" rx="8" fill="rgba(74, 144, 226, 0.2)" stroke="#4a90e2" stroke-width="2" />
+    <text x="420" y="115" text-anchor="middle" fill="#fff" font-size="12" font-weight="600" font-family="sans-serif">Final Report</text>
+    
+    <defs>
+        <marker id="arrow" markerWidth="10" height="10" refX="9" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8" />
+        </marker>
+    </defs>
+</svg>

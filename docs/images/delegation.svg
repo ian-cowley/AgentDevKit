@@ -1,0 +1,19 @@
+<svg width="500" height="150" viewBox="0 0 500 150" xmlns="http://www.w3.org/2000/svg">
+    <rect x="20" y="40" width="120" height="60" rx="10" fill="rgba(74, 144, 226, 0.1)" stroke="#4a90e2" stroke-width="2" />
+    <text x="80" y="75" text-anchor="middle" fill="#fff" font-size="14" font-weight="600" font-family="sans-serif">Manager</text>
+    
+    <path d="M140 70 H 220" stroke="#94a3b8" marker-end="url(#arrow)" />
+    <text x="180" y="60" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">Delegates To</text>
+
+    <rect x="220" y="40" width="120" height="60" rx="10" fill="rgba(34, 211, 238, 0.1)" stroke="#22d3ee" stroke-width="2" />
+    <text x="280" y="75" text-anchor="middle" fill="#fff" font-size="14" font-weight="600" font-family="sans-serif">Researcher</text>
+
+    <path d="M340 70 H 420" stroke="#94a3b8" marker-end="url(#arrow)" />
+    <text x="380" y="60" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">Results</text>
+    
+    <defs>
+        <marker id="arrow" markerWidth="10" height="10" refX="9" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8" />
+        </marker>
+    </defs>
+</svg>

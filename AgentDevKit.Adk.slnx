@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AgentDevKit.Adk.Sample/AgentDevKit.Adk.Sample.csproj" />
+    <Project Path="src/AgentDevKit.Adk/AgentDevKit.Adk.csproj" />
+  </Folder>
+</Solution>

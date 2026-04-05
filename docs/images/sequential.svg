@@ -1,0 +1,18 @@
+<svg width="600" height="120" viewBox="0 0 600 120" xmlns="http://www.w3.org/2000/svg">
+    <rect x="20" y="40" width="100" height="40" rx="8" fill="rgba(74, 144, 226, 0.1)" stroke="#4a90e2" stroke-width="2" />
+    <text x="70" y="65" text-anchor="middle" fill="#fff" font-size="12" font-weight="600" font-family="sans-serif">Writer</text>
+    <path d="M120 60 H 180" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)" />
+    
+    <rect x="180" y="40" width="110" height="40" rx="8" fill="rgba(74, 144, 226, 0.1)" stroke="#4a90e2" stroke-width="2" />
+    <text x="235" y="65" text-anchor="middle" fill="#fff" font-size="12" font-weight="600" font-family="sans-serif">Translator</text>
+    <path d="M290 60 H 350" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)" />
+    
+    <rect x="350" y="40" width="100" height="40" rx="8" fill="rgba(74, 144, 226, 0.1)" stroke="#4a90e2" stroke-width="2" />
+    <text x="400" y="65" text-anchor="middle" fill="#fff" font-size="12" font-weight="600" font-family="sans-serif">Reviewer</text>
+    
+    <defs>
+        <marker id="arrow" markerWidth="10" height="10" refX="9" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8" />
+        </marker>
+    </defs>
+</svg>
