@@ -1,5 +1,7 @@
 # Agent Development Kit (ADK)
 
+[![NuGet](https://img.shields.io/nuget/v/Glacier.AgentDevKit.Adk.svg)](https://www.nuget.org/packages/Glacier.AgentDevKit.Adk)
+
 Welcome to the **Agent Development Kit**. This C# library is designed to help you create "Agents"—AI personalities that don't just talk, but **think, plan, and act** using real-world tools.
 
 ## What is an Agent?
