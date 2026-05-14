@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace AgentDevKit.Adk;
+namespace Glacier.AgentDevKit.Adk;
 
 /// <summary>
 /// Executes a series of agents or tools in fixed sequence.

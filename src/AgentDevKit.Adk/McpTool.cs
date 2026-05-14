@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
-namespace AgentDevKit.Adk;
+namespace Glacier.AgentDevKit.Adk;
 
 public class McpTool : ITool
 {

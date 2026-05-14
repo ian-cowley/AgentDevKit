@@ -4,7 +4,23 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- NuGet Packaging Properties -->
+    <Version>1.0.1</Version>
+    <PackageId>Glacier.AgentDevKit.Adk</PackageId>
+    <AssemblyName>Glacier.AgentDevKit.Adk</AssemblyName>
+    <RootNamespace>Glacier.AgentDevKit.Adk</RootNamespace>
+    <Authors>Ian Cowley</Authors>
+    <Company>Glacier</Company>
+    <Description>A powerful agentic AI development kit for building LLM-powered autonomous agents and workflows with Model Context Protocol (MCP) support.</Description>
+    <PackageTags>llm agent ai mcp openai gemini csharp dotnet workflow</PackageTags>
+    <RepositoryUrl>https://github.com/ian-cowley/AgentDevKit</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.*" />

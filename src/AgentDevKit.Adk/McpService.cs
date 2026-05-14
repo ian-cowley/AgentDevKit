@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
-namespace AgentDevKit.Adk;
+namespace Glacier.AgentDevKit.Adk;
 
 public class McpService : IAsyncDisposable
 {

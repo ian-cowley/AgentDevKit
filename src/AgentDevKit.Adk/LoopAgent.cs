@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace AgentDevKit.Adk;
+namespace Glacier.AgentDevKit.Adk;
 
 /// <summary>
 /// Executes a task repeatedly until a condition is met or a turn limit is reached.

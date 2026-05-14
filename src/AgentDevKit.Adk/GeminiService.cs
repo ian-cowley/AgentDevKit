@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace AgentDevKit.Adk;
+namespace Glacier.AgentDevKit.Adk;
 
 public class GeminiService : ILlmService
 {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Text.Json.Nodes;
 
-namespace AgentDevKit.Adk;
+namespace Glacier.AgentDevKit.Adk;
 
 /// <summary>
 /// Wraps an IAgent as an ITool, enabling delegation (Manager -> Worker).

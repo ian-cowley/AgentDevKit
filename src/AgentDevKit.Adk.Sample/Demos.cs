@@ -1,10 +1,10 @@
-using AgentDevKit.Adk;
+using Glacier.AgentDevKit.Adk;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Text.Json.Nodes;
 
-namespace AgentDevKit.Adk.Sample;
+namespace Glacier.AgentDevKit.Adk.Sample;
 
 public static class Demos
 {

@@ -1,4 +1,4 @@
-namespace AgentDevKit.Adk;
+namespace Glacier.AgentDevKit.Adk;
 
 public class McpServerConfig
 {

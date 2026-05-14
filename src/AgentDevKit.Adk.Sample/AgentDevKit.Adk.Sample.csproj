@@ -20,6 +20,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RootNamespace>Glacier.AgentDevKit.Adk.Sample</RootNamespace>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
 </Project>

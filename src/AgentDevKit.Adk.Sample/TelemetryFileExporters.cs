@@ -3,7 +3,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using System.Diagnostics;
 
-namespace AgentDevKit.Adk.Sample;
+namespace Glacier.AgentDevKit.Adk.Sample;
 
 // Extends BaseProcessor<Activity> directly — no abstract wrapper needed.
 internal sealed class FileSpanExporter(TextWriter writer) : BaseProcessor<Activity>

@@ -1,5 +1,5 @@
-using AgentDevKit.Adk;
-using AgentDevKit.Adk.Sample;
+using Glacier.AgentDevKit.Adk;
+using Glacier.AgentDevKit.Adk.Sample;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -24,13 +24,13 @@ var telemetryWriter = new StreamWriter(telemetryLogPath, append: false) { AutoFl
 
 var tracerProvider = Sdk.CreateTracerProviderBuilder()
     .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("AgentSdk.Demo"))
-    .AddSource("AgentDevKit.Adk")
+    .AddSource("Glacier.AgentDevKit.Adk")
     .AddFileExporter(telemetryWriter)
     .Build();
 
 var meterProvider = Sdk.CreateMeterProviderBuilder()
     .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("AgentSdk.Demo"))
-    .AddMeter("AgentDevKit.Adk")
+    .AddMeter("Glacier.AgentDevKit.Adk")
     .AddFileExporter(telemetryWriter)
     .Build();
 
@@ -47,7 +47,7 @@ var services = new ServiceCollection()
     .BuildServiceProvider();
 
 // Run All Demos
-Console.WriteLine("=== AgentDevKit.Adk COMPREHENSIVE DEMO SUITE (LOCAL LLM: GEMMA-4) ===");
+Console.WriteLine("=== Glacier.AgentDevKit.Adk COMPREHENSIVE DEMO SUITE (LOCAL LLM: GEMMA-4) ===");
 await Demos.RunAllDemosAsync(services, configuration, modelName);
 
 // Cleanup — flush telemetry before exit so the final metric collection lands in the file
