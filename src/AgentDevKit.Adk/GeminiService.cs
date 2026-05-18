@@ -78,7 +78,11 @@ public class GeminiService : ILlmService
         var contentPayload = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
         
         var response = await _httpClient.PostAsync(url, contentPayload);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Gemini API Error (GenerateContent): {response.StatusCode} at {url.Split('?')[0]}\nDetails: {errorBody}");
+        }
 
         var json = await response.Content.ReadAsStringAsync();
         var doc = JsonNode.Parse(json);

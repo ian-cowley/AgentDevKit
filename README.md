@@ -1,6 +1,10 @@
 # Agent Development Kit (ADK)
 
+[![DEV.to Story](https://img.shields.io/badge/DEV.to-Story-0a0a0a?style=for-the-badge&logo=devto&logoColor=white)](https://dev.to/iancowley/c-got-left-behind-in-the-ai-agent-hype-so-i-fixed-it-agentdevkit-4b40)
 [![NuGet](https://img.shields.io/nuget/v/Glacier.AgentDevKit.Adk.svg)](https://www.nuget.org/packages/Glacier.AgentDevKit.Adk)
+
+> 📖 **Read the Deep-Dive**: **[C# got left behind in the AI Agent hype. So I fixed it. (AgentDevKit)](https://dev.to/iancowley/c-got-left-behind-in-the-ai-agent-hype-so-i-fixed-it-agentdevkit-4b40)**
+
 
 Welcome to the **Agent Development Kit**. This C# library is designed to help you create "Agents"—AI personalities that don't just talk, but **think, plan, and act** using real-world tools.
 
