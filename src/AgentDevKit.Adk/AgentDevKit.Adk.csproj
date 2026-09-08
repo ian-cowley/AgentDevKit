@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- NuGet Packaging Properties -->
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <PackageId>Glacier.AgentDevKit.Adk</PackageId>
     <AssemblyName>Glacier.AgentDevKit.Adk</AssemblyName>
     <RootNamespace>Glacier.AgentDevKit.Adk</RootNamespace>
@@ -30,7 +30,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
     <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
     <PackageReference Include="ModelContextProtocol.Core" Version="1.2.0" />
-    <PackageReference Include="OpenTelemetry" Version="1.15.1" />
+    <PackageReference Include="OpenTelemetry" Version="1.15.3" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.13" />
   </ItemGroup>
 
 </Project>
