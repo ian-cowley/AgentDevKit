@@ -41,7 +41,7 @@ var services = new ServiceCollection()
     .AddSingleton<IConfiguration>(configuration)
     .Configure<McpSettings>(configuration.GetSection("McpServers"))
     .AddSingleton<ILlmService>(sp => new OpenAiService(llmBaseUrl, timeout: TimeSpan.FromMinutes(5), debugWriter: telemetryWriter))
-    .AddSingleton<ISessionProvider, SqliteSessionProvider>()
+    .AddSingleton<ISessionProvider, MemorySessionProvider>()
     .AddSingleton<McpService>()
     .AddLogging(builder => builder.AddConsole())
     .BuildServiceProvider();

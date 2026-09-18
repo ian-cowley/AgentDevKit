@@ -3,4 +3,7 @@
     <Project Path="src/AgentDevKit.Adk.Sample/AgentDevKit.Adk.Sample.csproj" />
     <Project Path="src/AgentDevKit.Adk/AgentDevKit.Adk.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AgentDevKit.Adk.Tests/AgentDevKit.Adk.Tests.csproj" />
+  </Folder>
 </Solution>

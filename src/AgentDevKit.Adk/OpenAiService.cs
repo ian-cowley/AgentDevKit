@@ -74,9 +74,8 @@ public class OpenAiService : ILlmService
         using var stream = await response.Content.ReadAsStreamAsync();
         using var reader = new StreamReader(stream);
 
-        while (!reader.EndOfStream)
+        while (await reader.ReadLineAsync() is { } line)
         {
-            var line = await reader.ReadLineAsync();
             if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: ")) continue;
             
             var data = line.Substring(6).Trim();
