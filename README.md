@@ -196,6 +196,15 @@ Ever wonder why an AI said something? Our SDK has built-in **OpenTelemetry**. Yo
 
 ---
 
+## 🆕 What's New in v1.0.4
+
+- **Upgraded from `net8.0` to `net10.0`** — targets the latest .NET LTS release with improved Native AOT and performance primitives.
+- **`MemorySessionProvider` and `FileSessionProvider`** — replace the previous `SQLitePCLRaw` dependency for session persistence, eliminating a native SQLite library requirement.
+- **`MockMemoryLlmService` and `SqliteSessionProvider` purged** — removes test-only stubs and the SQLite provider from the production library surface.
+- **Full test suite authored from scratch** — **11 tests** covering agent orchestration, delegation, guardrails, and session management.
+
+---
+
 ## Credits
 
 Developed by **Ian Cowley** and **Antigravity** (Google DeepMind).
