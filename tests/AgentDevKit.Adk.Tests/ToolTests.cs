@@ -64,6 +64,31 @@ public class ToolTests
         Assert.Equal("Delegated Result from Specialist", response);
     }
 
+    [Fact]
+    public async Task McpServiceAndTool_WorkWithGlacierAgentMcp()
+    {
+        var (clientTransport, serverTransport) = Glacier.Agent.Mcp.InMemoryMcpTransport.CreateConnectedPair();
+        await using var server = new Glacier.Agent.Mcp.McpServer(serverTransport, "test-server", "1.0.0");
+        server.RegisterTool(
+            new Glacier.Agent.Mcp.McpTool("greet", "Says hello", new { type = "object" }),
+            (args, ct) => ValueTask.FromResult(Glacier.Agent.Mcp.McpToolCallResult.Success($"Hello, {args}!")));
+        server.Start();
+
+        var client = new Glacier.Agent.Mcp.McpClient(clientTransport);
+        await client.InitializeAsync("test-client", "1.0.0");
+
+        await using var service = new McpService();
+        var tools = await service.RegisterClientAsync(client);
+
+        Assert.Single(tools);
+        var tool = tools[0];
+        Assert.Equal("greet", tool.Name);
+        Assert.Equal("Says hello", tool.Description);
+
+        var result = await tool.ExecuteAsync("{\"name\": \"Glacier\"}");
+        Assert.Contains("Hello", result);
+    }
+
     public class CalcArgs
     {
         public int A { get; set; }

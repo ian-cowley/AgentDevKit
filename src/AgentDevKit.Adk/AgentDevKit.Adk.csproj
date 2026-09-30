@@ -6,13 +6,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- NuGet Packaging Properties -->
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
     <PackageId>Glacier.AgentDevKit.Adk</PackageId>
     <AssemblyName>Glacier.AgentDevKit.Adk</AssemblyName>
     <RootNamespace>Glacier.AgentDevKit.Adk</RootNamespace>
     <Authors>Ian Cowley</Authors>
     <Company>Glacier</Company>
-    <Description>A powerful agentic AI development kit for building LLM-powered autonomous agents and workflows with Model Context Protocol (MCP) support.</Description>
+    <Description>A powerful agentic AI development kit for building LLM-powered autonomous agents and workflows with Model Context Protocol (MCP) support backed by Glacier.Agent.</Description>
     <PackageTags>llm agent ai mcp openai gemini csharp dotnet workflow</PackageTags>
     <RepositoryUrl>https://github.com/ian-cowley/AgentDevKit</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -24,12 +24,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Glacier.Agent" Version="1.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
-    <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
-    <PackageReference Include="ModelContextProtocol.Core" Version="1.2.0" />
     <PackageReference Include="OpenTelemetry" Version="1.15.3" />
   </ItemGroup>
 

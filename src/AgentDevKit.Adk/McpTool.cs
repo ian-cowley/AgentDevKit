@@ -1,37 +1,49 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using ModelContextProtocol.Client;
-using ModelContextProtocol.Protocol;
+using System.Threading.Tasks;
+using Glacier.Agent.Mcp;
 
 namespace Glacier.AgentDevKit.Adk;
 
 public class McpTool : ITool
 {
     private readonly McpClient _client;
-    private readonly McpClientTool _mcpTool;
+    private readonly Glacier.Agent.Mcp.McpTool _mcpTool;
+
     public string Name => _mcpTool.Name;
     public string Description => _mcpTool.Description ?? string.Empty;
 
-    public McpTool(McpClient client, McpClientTool mcpTool)
+    public McpTool(McpClient client, Glacier.Agent.Mcp.McpTool mcpTool)
     {
-        _client = client;
-        _mcpTool = mcpTool;
+        _client = client ?? throw new ArgumentNullException(nameof(client));
+        _mcpTool = mcpTool ?? throw new ArgumentNullException(nameof(mcpTool));
     }
 
     public JsonNode GetParametersSchema()
     {
-        // In v1.2.0, the schema is accessible via ProtocolTool.InputSchema
-        return JsonNode.Parse(_mcpTool.ProtocolTool.InputSchema.ToString())!;
+        if (_mcpTool.InputSchema is JsonNode node)
+        {
+            return node;
+        }
+
+        if (_mcpTool.InputSchema is JsonElement element)
+        {
+            return JsonNode.Parse(element.GetRawText()) ?? new JsonObject();
+        }
+
+        string json = JsonSerializer.Serialize(_mcpTool.InputSchema);
+        return JsonNode.Parse(json) ?? new JsonObject();
     }
 
     public async Task<string> ExecuteAsync(string arguments)
     {
         try
         {
-            var argsDict = JsonSerializer.Deserialize<Dictionary<string, object?>>(arguments);
-            var result = await _client.CallToolAsync(Name, argsDict);
-            
-            if (result.IsError == true)
+            var result = await _client.CallToolAsync(Name, arguments);
+
+            if (result.IsError)
             {
                 return $"{{\"status\": \"error\", \"message\": \"Tool reported an error.\"}}";
             }
@@ -39,11 +51,10 @@ public class McpTool : ITool
             var outputs = new List<string>();
             foreach (var content in result.Content)
             {
-                if (content is TextContentBlock textBlock)
+                if (content.Text != null)
                 {
-                    outputs.Add(textBlock.Text);
+                    outputs.Add(content.Text);
                 }
-                // Handle other content types if necessary (e.g. Image, Resource)
             }
 
             return string.Join("\n", outputs);
