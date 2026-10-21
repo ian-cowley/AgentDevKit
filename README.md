@@ -2,6 +2,8 @@
 
 [![DEV.to Story](https://img.shields.io/badge/DEV.to-Story-0a0a0a?style=for-the-badge&logo=devto&logoColor=white)](https://dev.to/iancowley/c-got-left-behind-in-the-ai-agent-hype-so-i-fixed-it-agentdevkit-4b40)
 [![NuGet](https://img.shields.io/nuget/v/Glacier.AgentDevKit.Adk.svg)](https://www.nuget.org/packages/Glacier.AgentDevKit.Adk)
+[![Website](https://img.shields.io/badge/Website-glaciersoftware.dev-66fcf1.svg)](https://glaciersoftware.dev/)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-orange.svg?logo=buy-me-a-coffee)](https://buymeacoffee.com/glaciersoftware)
 
 > 📖 **Read the Deep-Dive**: **[C# got left behind in the AI Agent hype. So I fixed it. (AgentDevKit)](https://dev.to/iancowley/c-got-left-behind-in-the-ai-agent-hype-so-i-fixed-it-agentdevkit-4b40)**
 
@@ -208,3 +210,14 @@ Ever wonder why an AI said something? Our SDK has built-in **OpenTelemetry**. Yo
 ## Credits
 
 Developed by **Ian Cowley** and **Antigravity** (Google DeepMind).
+
+---
+
+## ❄️ Glacier Ecosystem & Support
+
+Part of the **[Glacier Ecosystem](https://glaciersoftware.dev/)** — high-performance, zero-allocation developer tooling and data engines natively built for modern C# and .NET 10.
+
+* 🌐 **Website & Documentation**: [glaciersoftware.dev](https://glaciersoftware.dev/)
+* ☕ **Buy Me a Coffee**: [buymeacoffee.com/glaciersoftware](https://buymeacoffee.com/glaciersoftware)
+* ❤️ **GitHub Sponsors**: [github.com/sponsors/ian-cowley](https://github.com/sponsors/ian-cowley)
+* 🐙 **All Repositories**: [github.com/ian-cowley](https://github.com/ian-cowley)
