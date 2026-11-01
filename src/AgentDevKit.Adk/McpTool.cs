@@ -25,27 +25,45 @@ public class McpTool : ITool
     {
         if (_mcpTool.InputSchema is JsonNode node)
         {
-            return node;
+            return node.DeepClone();
         }
 
         if (_mcpTool.InputSchema is JsonElement element)
         {
-            return JsonNode.Parse(element.GetRawText()) ?? new JsonObject();
+            return JsonNode.Parse(element.GetRawText()) ?? new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() };
         }
 
-        string json = JsonSerializer.Serialize(_mcpTool.InputSchema);
-        return JsonNode.Parse(json) ?? new JsonObject();
+        if (_mcpTool.InputSchema is string rawJson && !string.IsNullOrWhiteSpace(rawJson))
+        {
+            try
+            {
+                return JsonNode.Parse(rawJson) ?? new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() };
+            }
+            catch
+            {
+            }
+        }
+
+        return new JsonObject
+        {
+            ["type"] = "object",
+            ["properties"] = new JsonObject()
+        };
     }
 
     public async Task<string> ExecuteAsync(string arguments)
     {
         try
         {
-            var result = await _client.CallToolAsync(Name, arguments);
+            var result = await _client.CallToolAsync(Name, arguments).ConfigureAwait(false);
 
             if (result.IsError)
             {
-                return $"{{\"status\": \"error\", \"message\": \"Tool reported an error.\"}}";
+                return new JsonObject
+                {
+                    ["status"] = "error",
+                    ["message"] = "Tool reported an error."
+                }.ToJsonString();
             }
 
             var outputs = new List<string>();
@@ -61,7 +79,11 @@ public class McpTool : ITool
         }
         catch (Exception ex)
         {
-            return $"{{\"status\": \"error\", \"message\": \"{ex.Message}\"}}";
+            return new JsonObject
+            {
+                ["status"] = "error",
+                ["message"] = ex.Message
+            }.ToJsonString();
         }
     }
 }

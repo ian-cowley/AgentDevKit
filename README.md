@@ -7,203 +7,164 @@
 
 > 📖 **Read the Deep-Dive**: **[C# got left behind in the AI Agent hype. So I fixed it. (AgentDevKit)](https://dev.to/iancowley/c-got-left-behind-in-the-ai-agent-hype-so-i-fixed-it-agentdevkit-4b40)**
 
-
-Welcome to the **Agent Development Kit**. This C# library is designed to help you create "Agents"—AI personalities that don't just talk, but **think, plan, and act** using real-world tools.
-
-## What is an Agent?
-
-Think of it as a specialized job description for an AI. While ChatGPT is a generalist, an ADK Agent is an expert (like a "Database Researcher" or "Python Expert") equipped with the specific tools and instructions needed for that role.
+Welcome to **Glacier.AgentDevKit.Adk** — a 100% pure C# (.NET 10), Native AOT-compatible library for building autonomous AI agents that **think, plan, stream, and act** using strongly typed C# tools, multi-agent workflows, and the Model Context Protocol (MCP).
 
 ---
 
-## Why Agent Development Kit (ADK)?
+## Key Capabilities
 
-This project was inspired by the official Google Agent SDKs available for other languages. Recognizing that a robust, production-ready C# implementation was missing, this ADK was created to **fill that gap**.
-
-It provides .NET developers with a native, high-performance way to build sophisticated AI agents using Google's Gemini models and the Model Context Protocol (MCP), while following established patterns for agent orchestration.
+- **100% Pure C# & Native AOT Compatible (`net10.0`)**: Zero Python bridges, zero native SQLite dependencies, and full `JsonTypeInfo<T>` + `JsonSchemaExporter` support.
+- **Dynamic Tool Schema Generation**: `FunctionTool<TArgs, TResult>` automatically derives accurate JSON Schemas (including `[Description]` attributes and `required` properties) directly from your `TArgs` DTOs.
+- **True Incremental SSE Streaming**: Real-time token streaming and multi-chunk SSE tool-call delta reassembly across both `OpenAiService` (OpenAI, Glacier.Serve, vLLM, Ollama) and `GeminiService` (`?alt=sse` with `x-goog-api-key` header auth).
+- **Fail-Closed Security & Guardrails**: `SensitiveTool` enforces mandatory `IApprovalService` human-in-the-loop (HITL) consent (denying execution automatically if unconfigured), paired with `BeforeToolCall` argument interceptors.
+- **Composable Multi-Agent Orchestration**: Built-in `DelegationTool`, `SequentialAgent`, `ParallelAgent`, and `LoopAgent` primitives.
+- **Native OpenTelemetry**: First-class `ActivitySource` traces and `Meter` counters (`Glacier.AgentDevKit.Adk`).
 
 ---
 
-## The Brain
-
-At the center of everything is the `LlmAgent`. It takes your instructions and uses a **Language Model** (like Google Gemini or Google Gemma) to decide what to do next.
+## Getting Started
 
 ![Agent Architecture](docs/images/architecture.svg)
-*Figure 1: High-level Agent Architecture showing the loop of thought.*
-
-### Getting Started
 
 ```csharp
-// 1. Setup the Brain connections
-var llm = new GeminiService(apiKey);
+using System.ComponentModel;
+using Glacier.AgentDevKit.Adk;
 
-// 2. Create your Agent character
-var agent = new LlmAgent(
-    name: "ChefBot",
-    instructions: "You are an expert chef. Give short, punchy recipes."
+// 1. Connect an LLM provider (Gemini or any OpenAI-compatible server)
+var llm = new GeminiService(Environment.GetEnvironmentVariable("GEMINI_API_KEY")!);
+
+// 2. Define a strongly typed C# tool (JSON Schema is generated automatically from WeatherArgs)
+var weatherTool = new FunctionTool<WeatherArgs, string>(
+    name: "get_weather",
+    description: "Gets the current weather for a city.",
+    execute: args => $"Sunny and 22C in {args.City} ({args.Units})"
 );
 
-// 3. Ask it a question
-string result = await agent.RunAsync("How do I make a grilled cheese?", llm);
+// 3. Create your Agent
+var agent = new LlmAgent(
+    name: "TravelAssistant",
+    model: "gemini-2.5-flash",
+    description: "Helps travellers plan trips.",
+    instruction: "You are a concise travel assistant. Use tools when needed.",
+    tools: new List<ITool> { weatherTool }
+);
+
+// 4. Run or stream responses
+string answer = await agent.RunAsync("What's the weather in Tokyo in metric?", llm);
+
+public sealed class WeatherArgs
+{
+    [Description("City name, e.g. Tokyo")]
+    public required string City { get; set; }
+
+    [Description("Temperature unit system (metric or imperial)")]
+    public string Units { get; set; } = "metric";
+}
 ```
 
 ---
 
-## The Hands (Tools)
+## Session Memory (`MemorySessionProvider` & `FileSessionProvider`)
 
-Tools are what make agents truly powerful. Without tools, an AI can only talk. With tools, an AI can **read files, calculate math, or search the web.**
-
-> [!NOTE]
-> **Dynamic Capability:** When an agent realizes it needs information it doesn't have (like the current time or a file's contents), it will automatically pause, call a Tool, and use the result to finish its reply.
+Give agents persistent multi-turn memory across requests or process restarts without any native C/C++ database libraries:
 
 ```csharp
-// Define a new capability
-public class FileReadTool : ITool { ... }
+var sessions = new FileSessionProvider("./agent_sessions");
 
-// Give the hands to the agent
-agent.Tools.Add(new FileReadTool());
+var agent = new LlmAgent(
+    name: "Concierge",
+    model: "gpt-4o-mini",
+    description: "Remembers user preferences.",
+    instruction: "Remember facts shared by the user.",
+    tools: new List<ITool>(),
+    sessionProvider: sessions
+);
+
+await agent.RunAsync("My favourite airline seat is aisle.", llm, sessionId: "user-42");
+
+await foreach (var token in agent.RunStreamingAsync("Which seat should I book?", llm, sessionId: "user-42"))
+{
+    Console.Write(token);
+}
 ```
 
 ---
 
-## The Memory
+## Multi-Agent Teams & Workflows
 
-By default, AI models have "Goldfish Memory"—they forget every request as soon as it's done. Our SDK uses **Sessions** to give them long-term memory.
-
-```csharp
-// Using Sqlite lets your agent remember things even if you restart the app!
-var memory = new SqliteSessionProvider("Data Source=agents.db");
-
-// Load the history for "User_42"
-var (history, save) = await memory.GetSessionAsync("User_42");
-
-// Run the agent with that history
-var response = await agent.RunAsync(prompt, llm, history);
-
-// Save the new conversation part
-await save(agent.History);
-```
-
----
-
-## Building Teams (Delegation)
-
-One agent is smart, but a **Team of Agents** is unstoppable. You can give one agent (The Manager) another agent (The Specialist) as a tool.
-
+### Manager-Worker Delegation
 ![Delegation Pattern](docs/images/delegation.svg)
-*Figure 2: The Delegation Tool pattern.*
 
 ```csharp
-var researcher = new LlmAgent("Researcher", "Find facts...");
-var manager = new LlmAgent("Manager", "Guide the project...");
+var researcher = new LlmAgent("Researcher", "gemini-2.5-flash", "Finds domain facts.", "Provide verified facts.");
+var manager = new LlmAgent(
+    "Manager",
+    "gemini-2.5-flash",
+    "Coordinates tasks.",
+    "Delegate research questions to Researcher and summarize.",
+    new List<ITool> { new DelegationTool(researcher, llm) }
+);
+```
 
-// Manager now has a "Researcher Tool"
-manager.Tools.Add(new DelegationTool(researcher, llm));
+### Orchestration Workflows
+- **`SequentialAgent`**: Pipes the output of step `i` into step `i + 1`.
+  ![Sequential Pipeline](docs/images/sequential.svg)
+- **`ParallelAgent`**: Executes multiple specialist agents concurrently via `Task.WhenAll`, with an optional consolidator agent.
+  ![Parallel Workflow](docs/images/parallel.svg)
+- **`LoopAgent`**: Iteratively refines output until a `stopCondition` predicate succeeds or `maxTurns` is reached.
+  ![Loop Workflow](docs/images/loop.svg)
+
+---
+
+## Model Context Protocol (MCP)
+
+Discover and invoke external MCP servers natively via `Glacier.Agent.Mcp`:
+
+```csharp
+await using var mcp = new McpService();
+var mcpTools = await mcp.InitializeFromConfigAsync(configuration);
+agent.Tools.AddRange(mcpTools);
 ```
 
 ---
 
-## Design Patterns
+## Security: Guardrails & Fail-Closed HITL Approvals
 
-Orchestration helps you solve huge problems by breaking them into patterns. These three patterns are the foundation of all advanced agent workflows.
-
-### 1. Sequential Pipeline
-The simplest pattern. Data flows in a straight line from one expert to another. Each agent refines or transforms the output of the previous one.
-
-![Sequential Pipeline](docs/images/sequential.svg)
-*Figure 3: Sequential flow. Ideal for cleaning, translating, or formatting data.*
-
-### 2. Parallel Workflow
-Perfect for speed. One task is divided and sent to multiple agents at once. A "merger" step then combines their findings into a single response.
-
-![Parallel Workflow](docs/images/parallel.svg)
-*Figure 4: Parallel execution. Used for searching multiple sources simultaneously.*
-
-### 3. Loop Workflow
-For high-quality results. An agent creates content, and a "Validator" checks it against rules. If it fails, the agent is told what to fix and tries again.
-
-![Loop Workflow](docs/images/loop.svg)
-*Figure 5: Loop pattern. Great for code generation or fact-checking.*
-
----
-
-## Dynamic Tools (MCP)
-
-The **Model Context Protocol** is an industry standard. It lets your agent "plug in" to a database, a local file system, or a web search engine without writing any custom C# code.
+Wrapping a tool in `SensitiveTool` guarantees **fail-closed** enforcement: if `ApprovalService` is missing or returns `false`, execution is blocked before the tool can run.
 
 ```csharp
-// Auto-connect to a local SQLite database using MCP
-var mcp = new McpService();
-var databaseTools = await mcp.InitializeFromConfigAsync(config);
+var deleteTool = new SensitiveTool(new DeleteDatabaseTool());
 
-agent.Tools.AddRange(databaseTools);
-```
-
----
-
-## Security & Safety
-
-In the real world, agents can be dangerous. Our SDK provides **Guardrails** and **Manual Approvals** to keep your agents safe and compliant.
-
-> [!IMPORTANT]
-> **Human-in-the-Loop (HITL):** By wrapping a tool in `SensitiveTool`, you ensure the agent **cannot** run it without explicit permission from a human using the `IApprovalService`.
-
-```csharp
-// 1. Define a tool as "Sensitive"
-var tool = new SensitiveTool(new DeleteDatabaseTool());
-
-// 2. Provide an approval mechanism (e.g. CLI, Web, or Email)
-agent.ApprovalService = new ConsoleApprovalService();
-```
-
-### Guardrail Interceptors
-Use the `BeforeToolCall` hook to modify or block requests before they reach a tool. This is perfect for **Path Sanitization** or **Token Filtering**.
-
-```csharp
-agent.BeforeToolCall = async (tool, args) => {
-    if (args.Contains("..")) {
-        throw new SecurityException("Path breakout attempt!");
+var agent = new LlmAgent("OpsAgent", "gpt-4o-mini", "Ops assistant", "Manage databases safely.", new List<ITool> { deleteTool })
+{
+    ApprovalService = new ConsoleApprovalService(),
+    BeforeToolCall = (tool, argsJson) =>
+    {
+        if (argsJson.Contains("..", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Path traversal blocked.");
+        }
+        return Task.FromResult(argsJson);
     }
-    return args;
 };
 ```
 
 ---
 
-## 🛡️ Robustness & Retries
-
-Modern LLMs (especially smaller local ones) can sometimes produce malformed JSON or include conversational noise when calling tools. The ADK includes built-in safeguards to handle these scenarios.
-
-### Resilient Parsing & Self-Correction
-The SDK automatically "extracts" JSON blocks from noisy strings. If a tool call is still invalid, the agent provides feedback to the model and automatically retries the request.
+## Resilience & Self-Correction
 
 ![Self-Correction Loop](docs/images/resilience.svg)
-*Figure 6: The Self-Correction Loop for malformed outputs.*
 
-```csharp
-// Configure a robust agent with a retry budget
-var agent = new LlmAgent(...) {
-    MaxRetries = 3 // Automatically fix malformed output up to 3 times
-};
-```
+When local or quantized models emit noisy JSON around tool arguments, `OpenAiService` extracts valid JSON blocks and `LlmAgent` feeds validation errors back to the model for automatic self-correction up to `MaxRetries`.
 
 ---
 
-## Seeing the Logic (Telemetry)
+## What's New in v1.1.0
 
-Ever wonder why an AI said something? Our SDK has built-in **OpenTelemetry**. You can watch the "mental flow" of your agents in production-grade dashboards.
-
-> [!TIP]
-> **Visibility:** Track exactly how many tokens were used, how much it cost, and the specific sequence of tool calls that led to an answer.
-
----
-
-## 🆕 What's New in v1.0.4
-
-- **Upgraded from `net8.0` to `net10.0`** — targets the latest .NET LTS release with improved Native AOT and performance primitives.
-- **`MemorySessionProvider` and `FileSessionProvider`** — replace the previous `SQLitePCLRaw` dependency for session persistence, eliminating a native SQLite library requirement.
-- **`MockMemoryLlmService` and `SqliteSessionProvider` purged** — removes test-only stubs and the SQLite provider from the production library surface.
-- **Full test suite authored from scratch** — **11 tests** covering agent orchestration, delegation, guardrails, and session management.
+- **Dynamic JSON Schema Generation (`FunctionTool`)**: Replaced static placeholder schemas with `.NET 10` `JsonSchemaExporter` (`[Description]`, `required`, and Native AOT `JsonTypeInfo<T>` overloads).
+- **Streaming SSE Tool-Call Reassembly & True Gemini SSE**: `OpenAiService` reassembles chunked SSE `delta.tool_calls` fragments and correlates `tool_call_id`s; `GeminiService` streams real incremental SSE (`?alt=sse` + `x-goog-api-key` header).
+- **Fail-Closed `SensitiveTool` Enforcement**: `LlmAgent` strictly blocks `SensitiveTool` execution whenever no `IApprovalService` is configured.
+- **Full Native AOT Compatibility (`<IsAotCompatible>true</IsAotCompatible>`)**: Source-generated `AdkJsonContext`, AOT-safe MCP configuration binding, and zero build/trim warnings under `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`.
 
 ---
 

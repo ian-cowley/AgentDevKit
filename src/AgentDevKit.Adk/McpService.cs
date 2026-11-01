@@ -10,6 +10,7 @@ namespace Glacier.AgentDevKit.Adk;
 
 public class McpService : IAsyncDisposable
 {
+    private const string SdkVersion = "1.1.0";
     private readonly ILogger<McpService>? _logger;
     private readonly List<McpClient> _clients = new();
     private readonly List<Process> _processes = new();
@@ -24,9 +25,10 @@ public class McpService : IAsyncDisposable
     /// </summary>
     public async Task<List<ITool>> RegisterClientAsync(McpClient client)
     {
+        ArgumentNullException.ThrowIfNull(client);
         _clients.Add(client);
         var tools = new List<ITool>();
-        var mcpTools = await client.ListToolsAsync();
+        var mcpTools = await client.ListToolsAsync().ConfigureAwait(false);
         foreach (var tool in mcpTools)
         {
             _logger?.LogInformation("  Found tool: {ToolName}", tool.Name);
@@ -37,10 +39,15 @@ public class McpService : IAsyncDisposable
 
     public async Task<List<ITool>> InitializeFromConfigAsync(IConfiguration configuration)
     {
-        var settings = configuration.Get<McpSettings>();
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        var settings = BindMcpSettings(configuration);
         var allTools = new List<ITool>();
 
-        if (settings == null || settings.McpServers == null) return allTools;
+        if (settings.McpServers.Count == 0)
+        {
+            return allTools;
+        }
 
         foreach (var server in settings.McpServers)
         {
@@ -78,12 +85,11 @@ public class McpService : IAsyncDisposable
 
                 var transport = new StreamMcpTransport(process.StandardOutput.BaseStream, process.StandardInput.BaseStream);
                 var client = new McpClient(transport);
-                await client.InitializeAsync("AgentDevKit.Adk", "1.0.5");
+                await client.InitializeAsync("AgentDevKit.Adk", SdkVersion).ConfigureAwait(false);
 
                 _clients.Add(client);
 
-                // Discover all tools on this server
-                var mcpTools = await client.ListToolsAsync();
+                var mcpTools = await client.ListToolsAsync().ConfigureAwait(false);
                 foreach (var tool in mcpTools)
                 {
                     _logger?.LogInformation("  Found tool: {ToolName}", tool.Name);
@@ -99,13 +105,69 @@ public class McpService : IAsyncDisposable
         return allTools;
     }
 
+    private static McpSettings BindMcpSettings(IConfiguration configuration)
+    {
+        var settings = new McpSettings();
+        var serversSection = configuration.GetSection("McpServers");
+        if (!serversSection.Exists())
+        {
+            serversSection = configuration.GetSection("mcpServers");
+        }
+
+        if (!serversSection.Exists())
+        {
+            return settings;
+        }
+
+        foreach (var child in serversSection.GetChildren())
+        {
+            var serverConfig = new McpServerConfig
+            {
+                Command = child["Command"] ?? child["command"] ?? string.Empty
+            };
+
+            var argsSection = child.GetSection("Args");
+            if (!argsSection.Exists())
+            {
+                argsSection = child.GetSection("args");
+            }
+            foreach (var argItem in argsSection.GetChildren())
+            {
+                if (argItem.Value is not null)
+                {
+                    serverConfig.Args.Add(argItem.Value);
+                }
+            }
+
+            var envSection = child.GetSection("Env");
+            if (!envSection.Exists())
+            {
+                envSection = child.GetSection("env");
+            }
+            foreach (var envItem in envSection.GetChildren())
+            {
+                if (envItem.Value is not null)
+                {
+                    serverConfig.Env[envItem.Key] = envItem.Value;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(serverConfig.Command))
+            {
+                settings.McpServers[child.Key] = serverConfig;
+            }
+        }
+
+        return settings;
+    }
+
     public async ValueTask DisposeAsync()
     {
         foreach (var client in _clients)
         {
             try
             {
-                await client.DisposeAsync();
+                await client.DisposeAsync().ConfigureAwait(false);
             }
             catch
             {

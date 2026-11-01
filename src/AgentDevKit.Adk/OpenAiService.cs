@@ -1,8 +1,13 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
 namespace Glacier.AgentDevKit.Adk;
 
@@ -13,17 +18,24 @@ public class OpenAiService : ILlmService
     private readonly string? _apiKey;
     private readonly TextWriter? _debugWriter;
 
-    public OpenAiService(string baseUrl = "https://api.openai.com/v1", string? apiKey = null,
-        TimeSpan? timeout = null, TextWriter? debugWriter = null)
+    public OpenAiService(
+        string baseUrl = "https://api.openai.com/v1",
+        string? apiKey = null,
+        TimeSpan? timeout = null,
+        TextWriter? debugWriter = null,
+        HttpClient? httpClient = null)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(baseUrl);
+
         _baseUrl = baseUrl.TrimEnd('/');
         _apiKey = apiKey;
         _debugWriter = debugWriter;
-        _httpClient = new HttpClient
+        _httpClient = httpClient ?? new HttpClient
         {
             Timeout = timeout ?? TimeSpan.FromMinutes(5)
         };
-        if (!string.IsNullOrEmpty(_apiKey))
+
+        if (!string.IsNullOrEmpty(_apiKey) && _httpClient.DefaultRequestHeaders.Authorization is null)
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
         }
@@ -31,16 +43,19 @@ public class OpenAiService : ILlmService
 
     public async Task<LlmResponse> GenerateContentAsync(LlmRequest request)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var url = $"{_baseUrl}/chat/completions";
         var payload = MapToOpenAiRequest(request, stream: false);
-        var json = JsonSerializer.Serialize(payload);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        var json = payload.ToJsonString();
 
-        using var response = await _httpClient.PostAsync(url, content);
+        using var requestMessage = CreateHttpRequest(url, json);
+        using var response = await _httpClient.SendAsync(requestMessage).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadAsStringAsync();
+        var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
         _debugWriter?.WriteLine($"[DEBUG] Raw API response: {responseJson}");
+
         try
         {
             var doc = JsonNode.Parse(responseJson);
@@ -48,71 +63,192 @@ public class OpenAiService : ILlmService
         }
         catch (JsonException)
         {
-            // Return a response that triggers the agent's retry logic
-            return new LlmResponse { 
-                FunctionCalls = new List<LlmFunctionCall> { 
-                    new LlmFunctionCall { 
-                        Name = "error", 
-                        Args = JsonNode.Parse("{\"error\": \"The server returned malformed JSON. Please try again.\"}")! 
-                    } 
-                } 
-            };
+            return CreateMalformedJsonErrorResponse("The server returned malformed JSON. Please try again.");
         }
     }
 
     public async IAsyncEnumerable<LlmResponse> StreamGenerateContentAsync(LlmRequest request)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var url = $"{_baseUrl}/chat/completions";
         var payload = MapToOpenAiRequest(request, stream: true);
-        var json = JsonSerializer.Serialize(payload);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        var json = payload.ToJsonString();
 
-        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
-        using var response = await _httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead);
+        using var requestMessage = CreateHttpRequest(url, json);
+        using var response = await _httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        using var stream = await response.Content.ReadAsStreamAsync();
-        using var reader = new StreamReader(stream);
+        using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
 
-        while (await reader.ReadLineAsync() is { } line)
-        {
-            if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: ")) continue;
-            
-            var data = line.Substring(6).Trim();
-            if (data == "[DONE]") break;
+        var toolCallAccumulators = new SortedDictionary<int, ToolCallAccumulator>();
+        LlmUsage? finalUsage = null;
+        bool hadStreamParseError = false;
 
-            yield return TrySafeParseStreamResponse(data);
-        }
-    }
-
-    private LlmResponse TrySafeParseStreamResponse(string data)
-    {
-        try
+        while (await reader.ReadLineAsync().ConfigureAwait(false) is { } line)
         {
-            var doc = JsonNode.Parse(data);
-            return MapFromOpenAiStreamResponse(doc);
-        }
-        catch (JsonException)
-        {
-            return new LlmResponse
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0 || !trimmed.StartsWith("data:", StringComparison.Ordinal))
             {
-                FunctionCalls = new List<LlmFunctionCall> {
-                    new LlmFunctionCall {
-                        Name = "error", 
-                        Args = JsonNode.Parse("{\"error\": \"The server returned malformed JSON stream. Please try again.\"}")!
+                continue;
+            }
+
+            var data = trimmed.Substring(5).Trim();
+            if (data.Length == 0)
+            {
+                continue;
+            }
+
+            if (data == "[DONE]")
+            {
+                break;
+            }
+
+            JsonNode? doc = null;
+            try
+            {
+                doc = JsonNode.Parse(data);
+            }
+            catch (JsonException)
+            {
+                hadStreamParseError = true;
+            }
+
+            if (hadStreamParseError)
+            {
+                yield return CreateMalformedJsonErrorResponse("The server returned malformed JSON stream. Please try again.");
+                yield break;
+            }
+
+            var usageNode = doc?["usage"];
+            if (usageNode is not null)
+            {
+                finalUsage = new LlmUsage
+                {
+                    PromptTokens = usageNode["prompt_tokens"]?.GetValue<int>() ?? 0,
+                    CompletionTokens = usageNode["completion_tokens"]?.GetValue<int>() ?? 0
+                };
+            }
+
+            var delta = doc?["choices"]?[0]?["delta"];
+            if (delta is null)
+            {
+                continue;
+            }
+
+            var contentDelta = delta["content"]?.GetValue<string>() ?? delta["content"]?.ToString();
+            if (!string.IsNullOrEmpty(contentDelta))
+            {
+                yield return new LlmResponse { Content = contentDelta };
+            }
+
+            if (delta["tool_calls"] is JsonArray toolCallDeltas)
+            {
+                int fallbackIndex = 0;
+                foreach (var callDelta in toolCallDeltas)
+                {
+                    if (callDelta is null)
+                    {
+                        fallbackIndex++;
+                        continue;
                     }
+
+                    int index = callDelta["index"]?.GetValue<int>() ?? fallbackIndex;
+                    if (!toolCallAccumulators.TryGetValue(index, out var accumulator))
+                    {
+                        accumulator = new ToolCallAccumulator();
+                        toolCallAccumulators[index] = accumulator;
+                    }
+
+                    var idChunk = callDelta["id"]?.ToString();
+                    if (!string.IsNullOrEmpty(idChunk))
+                    {
+                        accumulator.Id = idChunk;
+                    }
+
+                    var fnNode = callDelta["function"];
+                    var nameChunk = fnNode?["name"]?.ToString();
+                    if (!string.IsNullOrEmpty(nameChunk))
+                    {
+                        accumulator.NameBuilder.Append(nameChunk);
+                    }
+
+                    var argsChunk = fnNode?["arguments"]?.ToString();
+                    if (!string.IsNullOrEmpty(argsChunk))
+                    {
+                        accumulator.ArgumentsBuilder.Append(argsChunk);
+                    }
+
+                    fallbackIndex++;
                 }
+            }
+        }
+
+        if (finalUsage is not null && finalUsage.TotalTokens > 0)
+        {
+            Telemetry.TokenCounter.Add(finalUsage.TotalTokens);
+        }
+
+        if (!hadStreamParseError && toolCallAccumulators.Count > 0)
+        {
+            var assembledCalls = new List<LlmFunctionCall>(toolCallAccumulators.Count);
+            foreach (var (_, acc) in toolCallAccumulators)
+            {
+                var name = acc.NameBuilder.ToString();
+                var rawArgs = acc.ArgumentsBuilder.Length == 0 ? "{}" : acc.ArgumentsBuilder.ToString();
+                var parsedArgs = TryExtractJson(rawArgs) ?? CreateMalformedArgsNode();
+
+                assembledCalls.Add(new LlmFunctionCall
+                {
+                    Id = acc.Id,
+                    Name = name,
+                    Args = parsedArgs
+                });
+            }
+
+            yield return new LlmResponse
+            {
+                FunctionCalls = assembledCalls,
+                Usage = finalUsage
             };
         }
+        else if (!hadStreamParseError && finalUsage is not null)
+        {
+            yield return new LlmResponse { Usage = finalUsage };
+        }
     }
 
-    private object MapToOpenAiRequest(LlmRequest request, bool stream)
+    private HttpRequestMessage CreateHttpRequest(string url, string json)
     {
-        var messages = new List<object>();
-
-        if (request.SystemInstruction != null)
+        var req = new HttpRequestMessage(HttpMethod.Post, url)
         {
-            messages.Add(new { role = "system", content = GetTextContent(request.SystemInstruction) });
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+
+        if (!string.IsNullOrEmpty(_apiKey) && _httpClient.DefaultRequestHeaders.Authorization is null)
+        {
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+        }
+
+        return req;
+    }
+
+    private static JsonObject MapToOpenAiRequest(LlmRequest request, bool stream)
+    {
+        var messages = new JsonArray();
+
+        if (request.SystemInstruction is not null)
+        {
+            var sysText = GetTextContent(request.SystemInstruction);
+            if (!string.IsNullOrEmpty(sysText))
+            {
+                messages.Add((JsonNode)new JsonObject
+                {
+                    ["role"] = "system",
+                    ["content"] = sysText
+                });
+            }
         }
 
         foreach (var msg in request.Contents)
@@ -125,76 +261,131 @@ public class OpenAiService : ILlmService
                 _ => "user"
             };
 
-            var content = GetTextContent(msg);
-            var toolCalls = GetToolCalls(msg);
-
             if (role == "tool")
             {
-                // In OpenAI, function responses must be linked to a tool_call_id
-                foreach (var part in msg.Parts.Where(p => p.FunctionResponse != null))
+                foreach (var part in msg.Parts)
                 {
-                    messages.Add(new
+                    if (part.FunctionResponse is null)
                     {
-                        role = "tool",
-                        tool_call_id = part.FunctionResponse!.Name, // We use name as ID for simplicity if not available
-                        content = part.FunctionResponse.Response?.ToJsonString() ?? ""
+                        continue;
+                    }
+
+                    messages.Add((JsonNode)new JsonObject
+                    {
+                        ["role"] = "tool",
+                        ["tool_call_id"] = string.IsNullOrEmpty(part.FunctionResponse.Id)
+                            ? part.FunctionResponse.Name
+                            : part.FunctionResponse.Id,
+                        ["content"] = part.FunctionResponse.Response?.ToJsonString() ?? string.Empty
                     });
                 }
             }
             else
             {
-                messages.Add(new
+                var content = GetTextContent(msg);
+                var toolCalls = GetToolCalls(msg);
+
+                var msgObj = new JsonObject
                 {
-                    role = role,
-                    content = string.IsNullOrEmpty(content) ? null : content,
-                    tool_calls = toolCalls?.Any() == true ? toolCalls : null
-                });
+                    ["role"] = role,
+                    ["content"] = string.IsNullOrEmpty(content) ? null : JsonValue.Create(content)
+                };
+
+                if (toolCalls is not null && toolCalls.Count > 0)
+                {
+                    msgObj["tool_calls"] = toolCalls;
+                }
+
+                messages.Add((JsonNode)msgObj);
             }
         }
 
-        var tools = request.Tools.Any() ? request.Tools.Select(t => new
+        var payload = new JsonObject
         {
-            type = "function",
-            function = new
-            {
-                name = t.Name,
-                description = t.Description,
-                parameters = t.GetParametersSchema()
-            }
-        }).ToList() : null;
-
-        return new
-        {
-            model = request.Model,
-            messages = messages,
-            tools = tools,
-            tool_choice = tools != null ? "auto" : null,
-            stream = stream
+            ["model"] = request.Model,
+            ["messages"] = messages,
+            ["stream"] = stream
         };
-    }
 
-    private string? GetTextContent(LlmContent content)
-    {
-        var texts = content.Parts.Where(p => p.Text != null).Select(p => p.Text);
-        return texts.Any() ? string.Join("\n", texts) : null;
-    }
-
-    private List<object>? GetToolCalls(LlmContent content)
-    {
-        var calls = content.Parts.Where(p => p.FunctionCall != null).Select(p => new
+        if (request.Tools.Count > 0)
         {
-            id = p.FunctionCall!.Name, // Simplification
-            type = "function",
-            function = new
+            var toolsArray = new JsonArray();
+            foreach (var tool in request.Tools)
             {
-                name = p.FunctionCall.Name,
-                arguments = p.FunctionCall.Args?.ToJsonString() ?? "{}"
+                toolsArray.Add((JsonNode)new JsonObject
+                {
+                    ["type"] = "function",
+                    ["function"] = new JsonObject
+                    {
+                        ["name"] = tool.Name,
+                        ["description"] = tool.Description,
+                        ["parameters"] = tool.GetParametersSchema().DeepClone()
+                    }
+                });
             }
-        });
-        return calls.Any() ? calls.Cast<object>().ToList() : null;
+
+            payload["tools"] = toolsArray;
+            payload["tool_choice"] = "auto";
+        }
+
+        return payload;
     }
 
-    private LlmResponse MapFromOpenAiResponse(JsonNode? doc)
+    private static string? GetTextContent(LlmContent content)
+    {
+        var texts = content.Parts.Where(p => p.Text != null).Select(p => p.Text!);
+        using var enumerator = texts.GetEnumerator();
+        if (!enumerator.MoveNext())
+        {
+            return null;
+        }
+
+        var first = enumerator.Current;
+        if (!enumerator.MoveNext())
+        {
+            return first;
+        }
+
+        var sb = new StringBuilder(first);
+        do
+        {
+            sb.Append('\n').Append(enumerator.Current);
+        } while (enumerator.MoveNext());
+
+        return sb.ToString();
+    }
+
+    private static JsonArray? GetToolCalls(LlmContent content)
+    {
+        JsonArray? calls = null;
+        foreach (var part in content.Parts)
+        {
+            if (part.FunctionCall is null)
+            {
+                continue;
+            }
+
+            calls ??= new JsonArray();
+            var callId = string.IsNullOrEmpty(part.FunctionCall.Id)
+                ? part.FunctionCall.Name
+                : part.FunctionCall.Id;
+
+            calls.Add((JsonNode)new JsonObject
+            {
+                ["id"] = callId,
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = part.FunctionCall.Name,
+                    ["arguments"] = part.FunctionCall.Args?.ToJsonString() ?? "{}"
+                }
+            });
+        }
+
+        return calls;
+    }
+
+    private static LlmResponse MapFromOpenAiResponse(JsonNode? doc)
     {
         var message = doc?["choices"]?[0]?["message"];
         var content = message?["content"]?.ToString();
@@ -204,18 +395,22 @@ public class OpenAiService : ILlmService
 
         if (toolCalls != null)
         {
-            response.FunctionCalls = new List<LlmFunctionCall>();
+            response.FunctionCalls = new List<LlmFunctionCall>(toolCalls.Count);
             foreach (var call in toolCalls)
             {
+                var id = call?["id"]?.ToString();
+                var name = call?["function"]?["name"]?.ToString() ?? string.Empty;
+                var rawArgs = call?["function"]?["arguments"]?.ToString() ?? "{}";
+
                 response.FunctionCalls.Add(new LlmFunctionCall
                 {
-                    Name = call?["function"]?["name"]?.ToString() ?? "",
-                    Args = TryExtractJson(call?["function"]?["arguments"]?.ToString() ?? "{}") ?? JsonNode.Parse("{\"error\": \"Malformed tool arguments. Please fix the JSON format.\"}")!
+                    Id = string.IsNullOrEmpty(id) ? null : id,
+                    Name = name,
+                    Args = TryExtractJson(rawArgs) ?? CreateMalformedArgsNode()
                 });
             }
         }
 
-        // Usage
         var usage = doc?["usage"];
         if (usage != null)
         {
@@ -224,47 +419,52 @@ public class OpenAiService : ILlmService
                 PromptTokens = usage["prompt_tokens"]?.GetValue<int>() ?? 0,
                 CompletionTokens = usage["completion_tokens"]?.GetValue<int>() ?? 0
             };
-            Telemetry.TokenCounter.Add(response.Usage.TotalTokens);
-        }
 
-        return response;
-    }
-
-    private LlmResponse MapFromOpenAiStreamResponse(JsonNode? doc)
-    {
-        var delta = doc?["choices"]?[0]?["delta"];
-        var content = delta?["content"]?.ToString();
-        var toolCalls = delta?["tool_calls"]?.AsArray();
-
-        var response = new LlmResponse { Content = content };
-
-        if (toolCalls != null)
-        {
-            response.FunctionCalls = new List<LlmFunctionCall>();
-            foreach (var call in toolCalls)
+            if (response.Usage.TotalTokens > 0)
             {
-                response.FunctionCalls.Add(new LlmFunctionCall
-                {
-                    Name = call?["function"]?["name"]?.ToString() ?? "",
-                    Args = TryExtractJson(call?["function"]?["arguments"]?.ToString() ?? "{}") ?? JsonNode.Parse("{\"error\": \"Malformed tool arguments. Please fix the JSON format.\"}")!
-                });
+                Telemetry.TokenCounter.Add(response.Usage.TotalTokens);
             }
         }
 
         return response;
     }
 
+    private static LlmResponse CreateMalformedJsonErrorResponse(string errorMessage)
+    {
+        return new LlmResponse
+        {
+            FunctionCalls = new List<LlmFunctionCall>
+            {
+                new LlmFunctionCall
+                {
+                    Name = "error",
+                    Args = new JsonObject { ["error"] = errorMessage }
+                }
+            }
+        };
+    }
+
+    private static JsonObject CreateMalformedArgsNode()
+    {
+        return new JsonObject
+        {
+            ["error"] = "Malformed tool arguments. Please fix the JSON format."
+        };
+    }
+
     private static JsonNode? TryExtractJson(string input)
     {
-        if (string.IsNullOrWhiteSpace(input)) return null;
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
 
         try
         {
-            // Simple approach: find first { and last }
             int start = input.IndexOf('{');
             int end = input.LastIndexOf('}');
 
-            if (start != -1 && end != -1 && end > start)
+            if (start != -1 && end != -1 && end >= start)
             {
                 string json = input.Substring(start, end - start + 1);
                 return JsonNode.Parse(json);
@@ -276,5 +476,12 @@ public class OpenAiService : ILlmService
         {
             return null;
         }
+    }
+
+    private sealed class ToolCallAccumulator
+    {
+        public string? Id { get; set; }
+        public StringBuilder NameBuilder { get; } = new();
+        public StringBuilder ArgumentsBuilder { get; } = new();
     }
 }

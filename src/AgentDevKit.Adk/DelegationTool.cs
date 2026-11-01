@@ -1,7 +1,6 @@
 using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 
 namespace Glacier.AgentDevKit.Adk;
 
@@ -13,33 +12,37 @@ public class DelegationTool : ITool
     private readonly IAgent _agent;
     private readonly ILlmService _llmService;
 
-    public string Name => _agent.Name;
-    public string Description => _agent.Description;
+    public string Name { get; }
+    public string Description { get; }
 
-    public DelegationTool(IAgent agent, ILlmService llmService)
+    public DelegationTool(IAgent agent, ILlmService llmService, string? name = null, string? description = null)
     {
-        _agent = agent;
-        _llmService = llmService;
+        _agent = agent ?? throw new ArgumentNullException(nameof(agent));
+        _llmService = llmService ?? throw new ArgumentNullException(nameof(llmService));
+        Name = string.IsNullOrWhiteSpace(name) ? _agent.Name : name;
+        Description = string.IsNullOrWhiteSpace(description) ? _agent.Description : description;
     }
 
     public JsonNode GetParametersSchema()
     {
-        return JsonNode.Parse("""
+        return new JsonObject
         {
-          "type": "object",
-          "properties": {
-            "prompt": {
-              "type": "string",
-              "description": "The specific task or query to delegate to this specialized agent."
+            ["type"] = "object",
+            ["properties"] = new JsonObject
+            {
+                ["prompt"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = "The specific task or query to delegate to this specialized agent."
+                },
+                ["sessionId"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = "Optional session ID to maintain worker memory."
+                }
             },
-            "sessionId": {
-              "type": "string",
-              "description": "Optional session ID to maintain worker memory."
-            }
-          },
-          "required": ["prompt"]
-        }
-        """)!;
+            ["required"] = new JsonArray("prompt")
+        };
     }
 
     public async Task<string> ExecuteAsync(string arguments)
@@ -49,18 +52,25 @@ public class DelegationTool : ITool
             var args = JsonNode.Parse(arguments);
             var prompt = args?["prompt"]?.ToString() ?? string.Empty;
             var sessionId = args?["sessionId"]?.ToString();
-            
-            if (string.IsNullOrWhiteSpace(prompt))
-                return "Error: No prompt provided for delegation.";
 
-            // Invoke the sub-agent
-            var result = await _agent.RunAsync(prompt, _llmService, sessionId);
-            
-            return result;
+            if (string.IsNullOrWhiteSpace(prompt))
+            {
+                return new JsonObject
+                {
+                    ["status"] = "error",
+                    ["message"] = "No prompt provided for delegation."
+                }.ToJsonString();
+            }
+
+            return await _agent.RunAsync(prompt, _llmService, sessionId).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            return $"{{\"status\": \"error\", \"message\": \"Delegation failed: {ex.Message}\"}}";
+            return new JsonObject
+            {
+                ["status"] = "error",
+                ["message"] = $"Delegation failed: {ex.Message}"
+            }.ToJsonString();
         }
     }
 }

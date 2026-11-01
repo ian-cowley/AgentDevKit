@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 /// <summary>
 /// Pure C# file-based session provider persisting message histories to JSON files on disk.
-/// Fully cross-platform, zero native C/C++ dependencies.
+/// Fully cross-platform, Native AOT compatible, zero native C/C++ dependencies.
 /// </summary>
 public class FileSessionProvider : ISessionProvider
 {
@@ -49,7 +49,7 @@ public class FileSessionProvider : ISessionProvider
                 return new List<LlmContent>();
             }
 
-            var items = JsonSerializer.Deserialize<List<LlmContent>>(json);
+            var items = JsonSerializer.Deserialize(json, AdkJsonContext.Default.ListLlmContent);
             return items ?? new List<LlmContent>();
         }
         finally
@@ -72,7 +72,9 @@ public class FileSessionProvider : ISessionProvider
             if (File.Exists(path))
             {
                 var json = await File.ReadAllTextAsync(path).ConfigureAwait(false);
-                history = JsonSerializer.Deserialize<List<LlmContent>>(json) ?? new List<LlmContent>();
+                history = string.IsNullOrWhiteSpace(json)
+                    ? new List<LlmContent>()
+                    : JsonSerializer.Deserialize(json, AdkJsonContext.Default.ListLlmContent) ?? new List<LlmContent>();
             }
             else
             {
@@ -80,7 +82,7 @@ public class FileSessionProvider : ISessionProvider
             }
 
             history.Add(message);
-            var updatedJson = JsonSerializer.Serialize(history, new JsonSerializerOptions { WriteIndented = true });
+            var updatedJson = JsonSerializer.Serialize(history, AdkIndentedJsonContext.Default.ListLlmContent);
             await File.WriteAllTextAsync(path, updatedJson).ConfigureAwait(false);
         }
         finally

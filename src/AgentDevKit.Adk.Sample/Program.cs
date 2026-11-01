@@ -3,19 +3,24 @@ using Glacier.AgentDevKit.Adk.Sample;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-
 using OpenTelemetry;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using OpenTelemetry.Metrics;
 
-// Resolve connection settings — prefer CLI args, fall back to defaults
-var llmBaseUrl = args.Length > 0 ? args[0] : "http://192.168.1.200:1234/v1";
-var modelName  = args.Length > 1 ? args[1] : "google/gemma-4-26b-a4b";
+// Resolve connection settings — prefer CLI args, then environment variables, then localhost defaults
+var llmBaseUrl = args.Length > 0
+    ? args[0]
+    : Environment.GetEnvironmentVariable("ADK_LLM_BASE_URL") ?? "http://localhost:11434/v1";
+var modelName = args.Length > 1
+    ? args[1]
+    : Environment.GetEnvironmentVariable("ADK_LLM_MODEL") ?? "google/gemma-4-26b-a4b";
+var llmApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
 
-// Setup Configuration
+// Setup Configuration (template + optional local override)
 var configuration = new ConfigurationBuilder()
-    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile("appsettings.template.json", optional: true, reloadOnChange: false)
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
     .Build();
 
 // Setup Telemetry — traces and metrics go to a file; one summary line on the console
@@ -39,15 +44,13 @@ Console.WriteLine($"[LLM]       {llmBaseUrl}  model={modelName}");
 
 var services = new ServiceCollection()
     .AddSingleton<IConfiguration>(configuration)
-    .Configure<McpSettings>(configuration.GetSection("McpServers"))
-    .AddSingleton<ILlmService>(sp => new OpenAiService(llmBaseUrl, timeout: TimeSpan.FromMinutes(5), debugWriter: telemetryWriter))
+    .AddSingleton<ILlmService>(_ => new OpenAiService(llmBaseUrl, apiKey: llmApiKey, timeout: TimeSpan.FromMinutes(5), debugWriter: telemetryWriter))
     .AddSingleton<ISessionProvider, MemorySessionProvider>()
     .AddSingleton<McpService>()
     .AddLogging(builder => builder.AddConsole())
     .BuildServiceProvider();
 
-// Run All Demos
-Console.WriteLine("=== Glacier.AgentDevKit.Adk COMPREHENSIVE DEMO SUITE (LOCAL LLM: GEMMA-4) ===");
+Console.WriteLine("=== Glacier.AgentDevKit.Adk COMPREHENSIVE DEMO SUITE ===");
 await Demos.RunAllDemosAsync(services, configuration, modelName);
 
 // Cleanup — flush telemetry before exit so the final metric collection lands in the file
@@ -56,4 +59,3 @@ await mcpService.DisposeAsync();
 meterProvider.Dispose();
 tracerProvider.Dispose();
 await telemetryWriter.DisposeAsync();
-Environment.Exit(0);

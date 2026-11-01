@@ -1,165 +1,116 @@
 # Agent Development Kit (ADK) — Developer Manual
 
-The **Agent Development Kit (ADK)** is a native .NET library designed for constructing modular, resilient, and telemetry-observable AI agents. Rather than treating LLMs as simple chat interfaces, the ADK models them as agentic actors equipped with structured tools, multi-agent delegation frameworks, session memory providers, and human-in-the-loop safeguards.
+The **Agent Development Kit (`Glacier.AgentDevKit.Adk`)** is a pure C# (.NET 10), Native AOT-compatible library for constructing modular, resilient, and observable AI agents equipped with strongly typed tools, Model Context Protocol (MCP) integrations, multi-agent workflows, session memory providers, and fail-closed human-in-the-loop safeguards.
 
 ---
 
 ## 1. System Architecture
 
-The core of the ADK revolves around the orchestration loop of the `LlmAgent`. An agent consists of:
-- **Identity & Instructions**: System prompts defining the persona, domain limits, and expected behavior.
-- **Model Client (`ILlmService`)**: A pluggable engine interface supporting Google Gemini, OpenAI, or local/mock models.
-- **Tools (`ITool`)**: Structured actions the model can request to execute, defining parameters via JSON Schema.
-- **Session History (`ISessionProvider`)**: Context storage tracking conversations across restarts (e.g., in a SQLite backing store).
+The core of the ADK revolves around the orchestration loop of `LlmAgent`:
+- **Identity & Instructions**: System prompts defining persona, boundaries, and expected behavior.
+- **Model Client (`ILlmService`)**: Pluggable adapter supporting `OpenAiService` (OpenAI, Glacier.Serve, vLLM, Ollama) and `GeminiService` (Google Gemini REST & SSE).
+- **Tools (`ITool`)**: Structured actions exposed via JSON Schema (`FunctionTool<TArgs, TResult>`, `DelegationTool`, `McpTool`, `SensitiveTool`).
+- **Session History (`ISessionProvider`)**: Pure C# conversation persistence via `MemorySessionProvider` or `FileSessionProvider`.
 
 ```mermaid
-graph TD
-    Client[Client Prompt] --> Agent[LlmAgent]
-    Agent --> Request[Compile LlmRequest]
-    Request --> LLM[ILlmService]
-    LLM --> Response[LlmResponse]
-    Response -->|Text Content| Complete[Return Response]
-    Response -->|Tool Calls| Loop[Validate & Execute Tool]
-    Loop -->|Approve/Intercept| Tool[ITool.ExecuteAsync]
-    Tool -->|Result| Feedback[Append to History]
+flowchart TD
+    Client["Client Prompt"] --> Agent["LlmAgent"]
+    Agent --> Request["Compile LlmRequest"]
+    Request --> LLM["ILlmService (Generate / Stream SSE)"]
+    LLM --> Response["LlmResponse"]
+    Response -->|"Text Content"| Complete["Return / Yield Response"]
+    Response -->|"Tool Calls"| Loop["Guardrail & Fail-Closed HITL Gate"]
+    Loop -->|"Approved"| Tool["ITool.ExecuteAsync"]
+    Loop -->|"Denied / Error"| Feedback["Structured Error JSON"]
+    Tool --> Feedback
     Feedback --> Request
 ```
 
-### Context & Token Management
-Since agent execution is iterative (requiring multiple LLM invocations for tool execution), context management is critical. Every tool call adds a pair of messages to the history:
-1. A **Model** message detailing the requested function call.
-2. A **Function** message containing the return payload.
-
-To prevent memory leaks or context exhaustion, the `LlmAgent` relies on the `ISessionProvider` to append and fetch history, while the developer is responsible for session recycling or log rotation.
-
 ---
 
-## 2. API Reference & Interface Specifications
+## 2. Core Interfaces & Tool Authoring
 
-### ITool
-Tools represent the capabilities exposed to the LLM. They must specify their parameters using JSON Schema.
+### `ITool` & `FunctionTool<TArgs, TResult>`
+`FunctionTool<TArgs, TResult>` derives JSON Schemas automatically from `TArgs` using `System.Text.Json.Schema.JsonSchemaExporter`.
 
+#### JIT Convenience Usage
 ```csharp
-namespace Glacier.AgentDevKit.Adk;
-
-public interface ITool
+public sealed class CalcArgs
 {
-    string Name { get; }
-    string Description { get; }
-    JsonNode GetParametersSchema();
-    Task<string> ExecuteAsync(string arguments);
+    [Description("First addend")]
+    public required int A { get; set; }
+
+    [Description("Second addend")]
+    public required int B { get; set; }
 }
+
+var addTool = new FunctionTool<CalcArgs, int>(
+    "add_numbers",
+    "Adds two integers.",
+    args => args.A + args.B
+);
 ```
 
-* **`Name`**: The technical name of the tool (must match regex `^[a-zA-Z0-9_-]{1,64}$`).
-* **`Description`**: A description explaining *when* and *how* the agent should invoke this tool.
-* **`GetParametersSchema()`**: Returns a standard JSON Schema object representing expected arguments.
-* **`ExecuteAsync()`**: Performs the operation. Returns a string payload (preferably JSON).
-
-### ILlmService
-The model adapter interface. The ADK includes implementations for `GeminiService` and `OpenAiService`.
-
+#### Native AOT Usage (`JsonTypeInfo<T>`)
 ```csharp
-public interface ILlmService
-{
-    Task<LlmResponse> GenerateContentAsync(LlmRequest request);
-    IAsyncEnumerable<LlmResponse> StreamGenerateContentAsync(LlmRequest request);
-}
-```
+[JsonSerializable(typeof(CalcArgs))]
+[JsonSerializable(typeof(int))]
+internal partial class AppJsonContext : JsonSerializerContext { }
 
-### ISessionProvider
-Enables chat memory persistence across restarts.
-
-```csharp
-public interface ISessionProvider
-{
-    Task<List<LlmContent>> GetHistoryAsync(string sessionId);
-    Task SaveMessageAsync(string sessionId, LlmContent message);
-}
+var aotTool = new FunctionTool<CalcArgs, int>(
+    "add_numbers",
+    "Adds two integers.",
+    args => args.A + args.B,
+    AppJsonContext.Default.CalcArgs,
+    AppJsonContext.Default.Int32
+);
 ```
 
 ---
 
-## 3. Core Capabilities & Advanced Orchestration Patterns
+## 3. Multi-Agent Orchestration Patterns
 
-The ADK natively supports multi-agent patterns to solve complex pipelines.
-
-### Pattern 1: Multi-Agent Delegation
-You can register an agent as a tool inside another agent's toolbox using `DelegationTool`. This allows the lead coordinator (e.g., an Acquisition Manager) to offload subtasks to specialized analysts.
-
+### Pattern 1: Manager-Worker Delegation (`DelegationTool`)
 ```csharp
-var analyst = new LlmAgent("PolarisAnalyst", "gemini-2.5-flash", "Filters listings...", "instructions...", tools);
-var manager = new LlmAgent("Manager", "gemini-2.5-flash", "Coordinates team...", "instructions...", new List<ITool>());
+var analyst = new LlmAgent("PolarisAnalyst", "gemini-2.5-flash", "Filters listings.", "Analyze pricing...", tools);
+var manager = new LlmAgent("Manager", "gemini-2.5-flash", "Coordinates team.", "Delegate analysis...", new List<ITool>());
 
-// Add delegation tool to manager
 manager.Tools.Add(new DelegationTool(
+    agent: analyst,
+    llmService: llmService,
     name: "DelegateToPolarisAnalyst",
-    description: "Filters Airbnb listings by price and reviews.",
-    specialistAgent: analyst,
-    llmService: llmService
+    description: "Filters listings by price and reviews."
 ));
 ```
 
-### Pattern 2: Sequential Pipeline
-In a pipeline, output from one agent is fed directly as the input to the next.
-
+### Pattern 2: `SequentialAgent`, `ParallelAgent`, and `LoopAgent`
 ```csharp
-var filterAgent = new LlmAgent("FilterAgent", "gemini-2.5-flash", ...);
-var summarizeAgent = new LlmAgent("Summarizer", "gemini-2.5-flash", ...);
-
-var filteredText = await filterAgent.RunAsync("Search cheap rooms in Islington", llm);
-var finalSummary = await summarizeAgent.RunAsync($"Summarize these listings:\n{filteredText}", llm);
-```
-
-### Pattern 3: Self-Correction Loop
-If the LLM generates a tool call parameter that fails validation, the ADK automatically intercept the error, logs it, appends the error feedback to the history, and requests the LLM to rewrite the call up to `MaxRetries`.
-
-```csharp
-var agent = new LlmAgent("ResilientAgent", "gemini-2.5-flash", ...)
-{
-    MaxRetries = 3 // Self-corrects JSON syntax or schema errors up to 3 times
-};
+var pipeline = new SequentialAgent("Pipeline", "Two-stage workflow", new[] { filterAgent, summarizeAgent });
+string output = await pipeline.RunAsync("Search rooms in Islington", llmService);
 ```
 
 ---
 
-## 4. Security, Interceptors, and HITL Approvals
+## 4. Security, Guardrails, and Fail-Closed HITL Approvals
 
-### Human-in-the-Loop (HITL)
-By wrapping a tool in a `SensitiveTool` and configuring an `IApprovalService`, the agent's run loop will pause before execution and request human consent.
+### Human-in-the-Loop (`SensitiveTool` + `IApprovalService`)
+`SensitiveTool` is **fail-closed**: if an agent attempts to invoke a `SensitiveTool` when no `IApprovalService` is configured on either the `LlmAgent` or the `SensitiveTool`, execution is denied automatically.
 
 ```csharp
-public class ConsoleApprovalService : IApprovalService
-{
-    public async Task<bool> ApproveAsync(string toolName, string arguments)
-    {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"[HITL] Tool '{toolName}' requested with args: {arguments}");
-        Console.Write("Approve? (y/n): ");
-        var input = Console.ReadLine();
-        Console.ResetColor();
-        return input?.ToLower() == "y";
-    }
-}
-
-// Setup agent
 var deleteDbTool = new SensitiveTool(new DeleteTableTool());
 agent.Tools.Add(deleteDbTool);
 agent.ApprovalService = new ConsoleApprovalService();
 ```
 
-### Guardrail Interceptors
-The `BeforeToolCall` delegate lets you audit, rewrite, or reject arguments before they are forwarded to the tool.
-
+### Guardrail Interceptors (`BeforeToolCall`)
 ```csharp
-agent.BeforeToolCall = async (tool, args) =>
+agent.BeforeToolCall = (tool, args) =>
 {
-    // Sanitize file path inputs
-    if (args.Contains("..") || args.Contains("/") || args.Contains("\\"))
+    if (args.Contains("..", StringComparison.Ordinal))
     {
-        throw new SecurityException("Directory traversal attempt blocked.");
+        throw new InvalidOperationException("Directory traversal attempt blocked.");
     }
-    return args; // Continue execution with sanitized args
+    return Task.FromResult(args);
 };
 ```
 
@@ -167,56 +118,31 @@ agent.BeforeToolCall = async (tool, args) =>
 
 ## 5. Model Context Protocol (MCP) Integration
 
-The ADK supports standard Model Context Protocol servers. You can load tools dynamically from external MCP server instances.
+Load tools from MCP servers configured via `IConfiguration` (`McpServers` or `mcpServers` section):
 
 ```csharp
-var mcpService = new McpService();
-// Load servers configured via json
-var mcpTools = await mcpService.InitializeFromConfigAsync("mcp-config.json");
-agent.Tools.AddRange(mcpTools);
-```
+var config = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.template.json", optional: true)
+    .AddJsonFile("appsettings.json", optional: true)
+    .Build();
 
-An example `mcp-config.json`:
-```json
-{
-  "mcpServers": {
-    "sqlite-server": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db", "listings.db"]
-    }
-  }
-}
+await using var mcpService = new McpService();
+var mcpTools = await mcpService.InitializeFromConfigAsync(config);
+agent.Tools.AddRange(mcpTools);
 ```
 
 ---
 
 ## 6. Telemetry & Observability
 
-The ADK implements native OpenTelemetry tracking via `System.Diagnostics.Activity` and metrics counters.
-
-### Trace Instruments
-- **Activity Source**: `Glacier.AgentDevKit.Adk`
-- **Activities**:
-  - `Run [AgentName]`: Tracks the full execution run of an agent.
-  - `Stream [AgentName]`: Tracks streaming tokens.
-  - `ToolCalls [AgentName]`: Measures the tool call routing layer.
-  - `Invoke [ToolName]`: Profiles individual tool execution times.
-
-### Metric Instruments
-- `glacier.adk.agent_runs`: Counter tracking total agent executions.
-- `glacier.adk.tool_executions`: Counter tracking total tool invocations.
-
-### Configuration Example
-To stream traces to Jaeger, Zipkin, or OpenTelemetry collector:
-
-```csharp
-using OpenTelemetry;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
-
-var tracerProvider = Sdk.CreateTracerProviderBuilder()
-    .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("MyAgentApp"))
-    .AddSource("Glacier.AgentDevKit.Adk")
-    .AddConsoleExporter() // or AddOtlpExporter()
-    .Build();
-```
+- **Activity Source & Meter Name**: `Glacier.AgentDevKit.Adk`
+- **Trace Spans**:
+  - `Run <AgentName>`
+  - `Stream <AgentName>`
+  - `ToolCalls <AgentName>`
+  - `Invoke <ToolName>`
+  - `Sequential <Name>`, `Parallel <Name>`, `Loop <Name>`
+- **Metric Counters**:
+  - `Glacier.AgentDevKit.Adk_tokens_total` (`tokens`)
+  - `Glacier.AgentDevKit.Adk_agent_runs_total` (`runs`)
+  - `Glacier.AgentDevKit.Adk_tool_executions_total` (`calls`)

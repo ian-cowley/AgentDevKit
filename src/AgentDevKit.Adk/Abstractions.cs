@@ -1,6 +1,8 @@
-using System.Text.Json;
+using System;
+using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
 namespace Glacier.AgentDevKit.Adk;
 
@@ -20,16 +22,37 @@ public interface IApprovalService
 public class SensitiveTool : ITool
 {
     public ITool InnerTool { get; }
+    public IApprovalService? ApprovalService { get; }
     public string Name => InnerTool.Name;
     public string Description => InnerTool.Description;
 
-    public SensitiveTool(ITool innerTool)
+    public SensitiveTool(ITool innerTool, IApprovalService? approvalService = null)
     {
-        InnerTool = innerTool;
+        InnerTool = innerTool ?? throw new ArgumentNullException(nameof(innerTool));
+        ApprovalService = approvalService;
     }
 
     public JsonNode GetParametersSchema() => InnerTool.GetParametersSchema();
-    public Task<string> ExecuteAsync(string arguments) => InnerTool.ExecuteAsync(arguments);
+
+    public async Task<string> ExecuteAsync(string arguments)
+    {
+        if (ApprovalService != null)
+        {
+            var approved = await ApprovalService.ApproveAsync(Name, arguments).ConfigureAwait(false);
+            if (!approved)
+            {
+                return new JsonObject
+                {
+                    ["status"] = "error",
+                    ["message"] = "Action rejected by user."
+                }.ToJsonString();
+            }
+        }
+
+        return await InnerTool.ExecuteAsync(arguments).ConfigureAwait(false);
+    }
+
+    internal Task<string> ExecuteApprovedAsync(string arguments) => InnerTool.ExecuteAsync(arguments);
 }
 
 public interface IAgent
@@ -89,6 +112,10 @@ public class LlmPart
 
 public class LlmFunctionCall
 {
+    [JsonPropertyName("id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Id { get; set; }
+
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
@@ -98,6 +125,10 @@ public class LlmFunctionCall
 
 public class LlmFunctionResponse
 {
+    [JsonPropertyName("id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Id { get; set; }
+
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 

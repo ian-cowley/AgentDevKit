@@ -41,8 +41,8 @@ if (-not $commitMessage) {
 Write-Host "Committing changes..."
 git commit -m $commitMessage
 
-Write-Host "Pushing to master..."
-git push origin master
+Write-Host "Pushing to main..."
+git push origin main
 
 # 5. Tagging
 $tagName = "v$newVersionStr"
