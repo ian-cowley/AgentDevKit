@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+> **Repository Consolidated & Archived (2026-11):** This package has been consolidated into **[$(System.Collections.Hashtable.Target)](https://github.com/ian-cowley/Glacier.Agent)** (namespace `Glacier.Agent.Adk / Glacier.Agent.Mcp`). Please reference the `Glacier.Agent` NuGet package (v1.2.0+) for all future updates.
+
+---
 # Agent Development Kit (ADK)
 
 [![DEV.to Story](https://img.shields.io/badge/DEV.to-Story-0a0a0a?style=for-the-badge&logo=devto&logoColor=white)](https://dev.to/iancowley/c-got-left-behind-in-the-ai-agent-hype-so-i-fixed-it-agentdevkit-4b40)
@@ -182,3 +186,4 @@ Part of the **[Glacier Ecosystem](https://glaciersoftware.dev/)** — high-perfo
 * ☕ **Buy Me a Coffee**: [buymeacoffee.com/glaciersoftware](https://buymeacoffee.com/glaciersoftware)
 * ❤️ **GitHub Sponsors**: [github.com/sponsors/ian-cowley](https://github.com/sponsors/ian-cowley)
 * 🐙 **All Repositories**: [github.com/ian-cowley](https://github.com/ian-cowley)
+
